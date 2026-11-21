@@ -28,17 +28,6 @@ Open `/admin` and sign in with `ADMIN_USER` and `ADMIN_PASSWORD` from `.env`. It
 
 To fill the dashboard with sample enquiries and chatbot leads, run `node scripts/seed-demo.js`. Remove them again with `node scripts/seed-demo.js --clear`.
 
-## Run it
-
-Requires Node.js 22.13 or newer.
-
-```bash
-npm install
-cp .env.example .env      # set ADMIN_PASSWORD at least
-npm start
-```
-
-Open http://localhost:3000 and http://localhost:3000/admin. Settings are the same as before; see [.env.example](.env.example) and [DEPLOY.md](DEPLOY.md).
 
 ## Customising
 

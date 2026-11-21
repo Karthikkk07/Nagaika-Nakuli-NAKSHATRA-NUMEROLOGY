@@ -146,6 +146,8 @@ input,select,textarea { width:100%; padding:9px 11px; border:1px solid #d9c690; 
 input:focus,select:focus,textarea:focus { outline:2px solid var(--yellow-d); border-color:transparent; }
 .field { margin-bottom:12px; }
 .hp { position:absolute; left:-9999px; }
+.req { color:#d32f2f; font-weight:800; margin-left:2px; }
+.req-note { font-size:.82rem; color:var(--muted); margin:0 0 10px; }
 .err { color:var(--err); font-size:.85rem; min-height:1em; }
 .msg { padding:12px 14px; border-radius:6px; margin:14px 0; display:none; }
 .msg.ok { display:block; background:#e6f6ec; color:var(--ok); }

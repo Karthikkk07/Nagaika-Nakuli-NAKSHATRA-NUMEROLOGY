@@ -15,21 +15,22 @@
     <div id="mform-wrap">
       <p class="muted" style="margin-top:0">Enter the birth details of both people and pay the service fee. Our numerologist studies the two horoscopes and contacts you with the details you give below to discuss whether the match is suitable.</p>
       <div class="msg" id="demo-note" style="display:none;background:#fff8e1;color:#7a4b00"><b>Demo mode:</b> online payment is not connected yet, so no real money is charged. The full flow still works.</div>
+      <p class="req-note"><span class="req">*</span> Required. Place of birth is optional.</p>
       <form id="mform" novalidate>
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
         <div class="mm-cols">
           <fieldset class="mm-col mm-male">
             <legend><i>&#9794;</i> Male (Groom)</legend>
-            <div class="field"><label for="g-name">Name</label><input id="g-name" maxlength="100" autocomplete="off"></div>
-            <div class="field"><label for="g-dob">Date of birth (DOB)</label><input id="g-dob" type="date" min="1900-01-01"></div>
-            <div class="field"><label for="g-tob">Time of birth (TOB, IST)</label><input id="g-tob" type="time"><label class="chk"><input type="checkbox" id="g-unk"> I do not know the birth time</label></div>
+            <div class="field"><label for="g-name">Name <span class="req">*</span></label><input id="g-name" maxlength="100" autocomplete="off" aria-required="true"></div>
+                        <div class="field"><label for="g-dob">Date of birth (DOB) <span class="req">*</span></label><input id="g-dob" type="date" min="1900-01-01" aria-required="true"></div>
+                        <div class="field"><label for="g-tob">Time of birth (TOB, IST) <span class="req">*</span></label><input id="g-tob" type="time" aria-required="true"><label class="chk"><input type="checkbox" id="g-unk"> I do not know the birth time</label></div>
             <div class="field"><label for="g-pob">Place of birth (POB)</label><input id="g-pob" maxlength="100" list="mm-cities" placeholder="e.g. Hyderabad" autocomplete="off"></div>
           </fieldset>
           <fieldset class="mm-col mm-female">
             <legend><i>&#9792;</i> Female (Bride)</legend>
-            <div class="field"><label for="b-name">Name</label><input id="b-name" maxlength="100" autocomplete="off"></div>
-            <div class="field"><label for="b-dob">Date of birth (DOB)</label><input id="b-dob" type="date" min="1900-01-01"></div>
-            <div class="field"><label for="b-tob">Time of birth (TOB, IST)</label><input id="b-tob" type="time"><label class="chk"><input type="checkbox" id="b-unk"> I do not know the birth time</label></div>
+            <div class="field"><label for="b-name">Name <span class="req">*</span></label><input id="b-name" maxlength="100" autocomplete="off" aria-required="true"></div>
+                        <div class="field"><label for="b-dob">Date of birth (DOB) <span class="req">*</span></label><input id="b-dob" type="date" min="1900-01-01" aria-required="true"></div>
+                        <div class="field"><label for="b-tob">Time of birth (TOB, IST) <span class="req">*</span></label><input id="b-tob" type="time" aria-required="true"><label class="chk"><input type="checkbox" id="b-unk"> I do not know the birth time</label></div>
             <div class="field"><label for="b-pob">Place of birth (POB)</label><input id="b-pob" maxlength="100" list="mm-cities" placeholder="e.g. Bengaluru" autocomplete="off"></div>
           </fieldset>
         </div>
@@ -39,9 +40,9 @@
           <h3 style="margin-top:0">Your contact details</h3>
           <p class="muted" style="margin:0 0 10px;font-size:.88rem">Our numerologist uses these to contact you. Your details are kept private.</p>
           <div class="row">
-            <div class="field"><label for="c-name">Your name</label><input id="c-name" maxlength="100" autocomplete="name"></div>
-            <div class="field"><label for="c-phone">Mobile number</label><input id="c-phone" type="tel" inputmode="numeric" maxlength="20" autocomplete="tel"></div>
-            <div class="field"><label for="c-email">Email</label><input id="c-email" type="email" maxlength="150" autocomplete="email"></div>
+            <div class="field"><label for="c-name">Your name <span class="req">*</span></label><input id="c-name" maxlength="100" autocomplete="name" aria-required="true"></div>
+                        <div class="field"><label for="c-phone">Mobile number <span class="req">*</span></label><input id="c-phone" type="tel" inputmode="numeric" maxlength="20" autocomplete="tel" aria-required="true"></div>
+                        <div class="field"><label for="c-email">Email <span class="req">*</span></label><input id="c-email" type="email" maxlength="150" autocomplete="email" aria-required="true"></div>
           </div>
           <div class="mm-fee"><span>Service fee</span><b id="fee">&#8377;5,000</b></div>
           <button class="btn" id="mpay" type="submit">Pay &amp; get the matching report</button>

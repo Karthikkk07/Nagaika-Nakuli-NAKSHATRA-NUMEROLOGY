@@ -99,15 +99,16 @@
   <div class="hs-wrap">
     <p class="muted" style="margin:0 0 12px">Enter your birth details to see your Moon Nakshatra, Gana and Moon sign beside your birth number, life path and the nine planets. Free, in about a minute.</p>
     <form id="hs-form" novalidate>
-      <div class="hs-gender" role="radiogroup" aria-label="Gender">
+      <div class="hs-gender" role="radiogroup" aria-label="Gender (required)">
         <label class="gopt"><input type="radio" name="gender" value="Male"><span><i>&#9794;</i>Male</span></label>
         <label class="gopt"><input type="radio" name="gender" value="Female"><span><i>&#9792;</i>Female</span></label>
       </div>
+      <p class="req-note" style="margin-top:-6px"><span class="req">*</span> Required: gender, name, mobile, date and time of birth. Place of birth is optional.</p>
       <div class="hs-fields">
-        <div class="field"><label for="hs-name">Your name</label><input id="hs-name" name="name" maxlength="100" autocomplete="name" required></div>
-        <div class="field"><label for="hs-phone">Mobile number</label><input id="hs-phone" name="phone" type="tel" inputmode="numeric" maxlength="20" autocomplete="tel" required></div>
-        <div class="field"><label for="hs-dob">Date of birth</label><input id="hs-dob" name="dob" type="date" min="1900-01-01" required></div>
-        <div class="field"><label for="hs-tob">Time of birth (IST)</label><input id="hs-tob" name="tob" type="time" required><label class="chk"><input type="checkbox" name="tobUnknown"> I do not know my birth time</label></div>
+        <div class="field"><label for="hs-name">Your name <span class="req">*</span></label><input id="hs-name" name="name" maxlength="100" autocomplete="name" required></div>
+        <div class="field"><label for="hs-phone">Mobile number <span class="req">*</span></label><input id="hs-phone" name="phone" type="tel" inputmode="numeric" maxlength="20" autocomplete="tel" required></div>
+        <div class="field"><label for="hs-dob">Date of birth <span class="req">*</span></label><input id="hs-dob" name="dob" type="date" min="1900-01-01" required></div>
+        <div class="field"><label for="hs-tob">Time of birth (IST) <span class="req">*</span></label><input id="hs-tob" name="tob" type="time" required><label class="chk"><input type="checkbox" name="tobUnknown"> I do not know my birth time</label></div>
         <div class="field hs-pob"><label for="hs-pob">Place of birth</label><input id="hs-pob" name="pob" maxlength="100" list="hs-cities" autocomplete="off" placeholder="e.g. Bengaluru"></div>
       </div>
       <datalist id="hs-cities"><option value="Bengaluru"><option value="Hyderabad"><option value="Chennai"><option value="Mumbai"><option value="New Delhi"><option value="Kolkata"><option value="Pune"><option value="Mysuru"><option value="Vijayawada"><option value="Visakhapatnam"><option value="Kochi"><option value="Ahmedabad"></datalist>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin | Nagaika, Nakuli Numerology</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<style>
+:root{--yellow:#fbb917;--orange:#ee6a12;--orange-d:#d4570a;--maroon:#7a1f0b;--cream:#fff6e0;--line:#ecd9a8}
+*{box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;background:#fdf3dc;color:#262626}
+header{background:var(--yellow);color:#4a2a00;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid #e09b00}
+header .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem;color:var(--maroon)}
+header .brand img{height:40px}
+header .acts{display:flex;gap:8px;flex-wrap:wrap}
+main{padding:18px 20px 40px;max-width:1500px;margin:auto}
+.btn{background:var(--orange);color:#fff;border:0;padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:700;text-decoration:none;font-size:.88rem;display:inline-block}
+.btn:hover{background:var(--orange-d)}
+.btn.w{background:#fff;color:#4a2a00}
+.btn.w:hover{background:var(--cream)}
+.btn.sm{padding:4px 10px;font-size:.8rem}
+.btn.red{background:#b3261e}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:0 0 16px}
+.stat{background:#fff;border:1px solid var(--line);border-left:5px solid var(--orange);padding:12px 16px;border-radius:6px}
+.stat b{display:block;font-size:1.7rem;color:var(--maroon);line-height:1.1}
+.stat span{font-size:.82rem;color:#6b6b6b;text-transform:uppercase;letter-spacing:.4px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs button{padding:9px 16px;border:1px solid var(--line);border-bottom:0;background:#fff;cursor:pointer;border-radius:8px 8px 0 0;font:inherit;font-weight:600;color:#555}
+.tabs button.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.view{background:#fff;border:1px solid var(--line);padding:14px;border-radius:0 8px 8px 8px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.bar input,.bar select{padding:8px 10px;border:1px solid #d9c690;border-radius:6px;font:inherit}
+.bar input{flex:1;min-width:200px}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:9px 10px;border-bottom:1px solid #f1e5c2;text-align:left;vertical-align:top}
+th{background:var(--cream);color:var(--maroon);white-space:nowrap}
+tr.new td:first-child{border-left:4px solid var(--orange)}
+tr.contacted td:first-child{border-left:4px solid #2a7de1}
+tr.done td:first-child{border-left:4px solid #1b9a4b}
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:.75rem;font-weight:700;text-transform:uppercase}
+.badge.new{background:#ffe2cc;color:var(--orange-d)}.badge.contacted{background:#d9ecff;color:#1b5fb0}.badge.done{background:#d8f2e1;color:#14753a}
+.badge.src{background:#f3eadb;color:#6b4d1b}
+select,input,button,textarea{font:inherit}
+td select,td input{width:100%;padding:6px 8px;border:1px solid #d9c690;border-radius:6px;margin-bottom:4px}
+.panel{background:var(--cream);border:1px solid var(--line);padding:16px;border-radius:8px;margin-bottom:16px}
+.panel input,.panel textarea{width:100%;padding:9px 10px;border:1px solid #d9c690;border-radius:6px;margin:4px 0 10px}
+.panel label{font-weight:600;font-size:.9rem}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.vcard{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.vcard img{width:100%;border-radius:6px}
+.vcard .btn{margin-top:auto;align-self:flex-start}
+.note{color:#6b6b6b;font-size:.85rem}
+.flash{padding:9px 12px;border-radius:6px;margin-bottom:12px;background:#e6f6ec;color:#1b7f43}
+.flash.bad{background:#fdecea;color:#b3261e}
+.empty{padding:26px;text-align:center;color:#6b6b6b}
+.ocard{border:1px solid var(--line);border-left:5px solid var(--orange);border-radius:8px;padding:12px 14px;margin-bottom:12px;background:#fff}
+.ocard.contacted{border-left-color:#2a7de1}.ocard.done{border-left-color:#1b9a4b}
+.ohead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.ohead h3{margin:0;font-size:1.05rem;color:var(--maroon)}
+.ogrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:10px 0}
+.ogrid h4{margin:0 0 4px;font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;color:#8a6a2a}
+.ogrid p{margin:2px 0;font-size:.88rem}
+.oacts{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.btn.blue{background:#2a7de1}.btn.green{background:#1b9a4b}.btn.dk{background:#4a2a00}
+.badge.demo{background:#fff1c2;color:#7a4b00}.badge.paid{background:#d8f2e1;color:#14753a}.badge.free{background:#e8e0f7;color:#4b2a9b}
+.mailbox{background:var(--cream);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:8px}
+.mailbox input,.mailbox textarea{width:100%;padding:8px 10px;border:1px solid #d9c690;border-radius:6px;margin:4px 0 8px}
+.msglog{margin-top:8px;font-size:.82rem;border-top:1px dashed var(--line);padding-top:6px}
+.msglog div{margin:3px 0}
+@media (max-width:760px){
+  main{padding:12px 10px 30px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .view{padding:10px}
+  table.stk,table.stk tbody,table.stk tr,table.stk td{display:block;width:100%}
+  table.stk tr:first-child{display:none}
+  table.stk tr{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;padding:6px 4px}
+  table.stk td{border:0;padding:5px 10px}
+  table.stk td::before{content:attr(data-l);display:block;font-size:.72rem;text-transform:uppercase;color:#8a6a2a;font-weight:700}
+  table.stk td:empty{display:none}
+  tr.new td:first-child,tr.contacted td:first-child,tr.done td:first-child{border-left:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="/img/logo.png" alt="" onerror="this.remove()"><span>Admin Dashboard</span></div>
+  <div class="acts"><a class="btn w" href="/" target="_blank">View site</a> <a class="btn w" href="/admin/export.csv">Export CSV</a> <button class="btn w" onclick="load()">Refresh</button> <button class="btn" onclick="logout()">Log out</button></div>
+</header>
+<main>
+  <div class="stats" id="stats"></div>
+  <div class="tabs"><button class="on" data-t="orders">Paid orders</button><button data-t="enq">Enquiries</button><button data-t="chat">Chatbot leads</button><button data-t="pay">Payments</button><button data-t="blogs">Blogs</button><button data-t="vids">YouTube videos</button><button data-t="settings">Settings</button></div>
+  <div class="view" id="view"></div>
+</main>
+<script>
+var D = { enquiries: [], payments: [], chats: [], orders: [], blogs: [], videos: [], settings: {}, mailReady: false }, tab = 'orders', editing = null, flashMsg = null, fStatus = 'all', fQ = '', oStatus = 'all', oQ = '', composing = null;
+var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+var fmt = function (d) { return new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+function api(url, method, body) {
+  return fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
+    .then(function (r) { if (r.status === 401) { location.href = '/admin/login'; throw 0; } return r.json(); });
+}
+function load() {
+  return Promise.all([api('/admin/api/data'), api('/admin/api/blogs'), api('/admin/api/videos'), fetch('/api/settings').then(function (r) { return r.json(); })])
+    .then(function (a) { D = Object.assign(a[0], { blogs: a[1], videos: a[2], settings: a[3] }); render(); }).catch(function () {});
+}
+function flash(t, bad) { flashMsg = { t: t, bad: bad }; render(); }
+function logout() { fetch('/admin/logout', { method: 'POST' }).then(function () { location.href = '/admin/login'; }); }
+
+function enqRows() {
+  var q = fQ.toLowerCase();
+  var list = D.enquiries.filter(function (e) {
+    return (fStatus === 'all' || e.status === fStatus) && (!q || [e.name, e.email, e.phone, e.service, e.message].join(' ').toLowerCase().indexOf(q) > -1);
+  });
+  if (!list.length) return '<div class="empty">No enquiries match.</div>';
+  return '<div class="wrap"><table class="stk"><tr><th>Received</th><th>Name</th><th>Contact</th><th>Service</th><th>Details</th><th>Status / notes</th><th></th></tr>' +
+    list.map(function (e) {
+      return '<tr class="' + esc(e.status) + '"><td data-l="Received">' + fmt(e.received_at) + '<br><span class="badge src">' + esc(e.source || 'contact') + '</span></td><td data-l="Name"><b>' + esc(e.name) + '</b></td>' +
+        '<td data-l="Contact">' + esc(e.phone) + (e.phone_verified ? ' &#10003;' : '') + '<br>' + esc(e.email) + '</td><td data-l="Service">' + esc(e.service) + '<br><span class="note">' + esc(e.mode) + '</span></td>' +
+        '<td data-l="Details"><span class="note">DOB: ' + esc(e.dob || '-') + ' &middot; Pref: ' + esc(e.pref_date || '-') + '</span><br>' + esc(e.message) + '</td>' +
+        '<td data-l="Status / notes"><select id="s' + e.id + '">' + ['new', 'contacted', 'done'].map(function (s) { return '<option' + (s === e.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>' +
+        '<input id="n' + e.id + '" placeholder="notes" value="' + esc(e.notes) + '"></td>' +
+        '<td data-l=""><button class="btn sm" onclick="saveE(\'' + e.id + '\')">Save</button> <button class="btn sm red" onclick="delE(\'' + e.id + '\')">Delete</button></td></tr>';
+    }).join('') + '</table></div>';
+}
+function orderCards() {
+  var q = oQ.toLowerCase();
+  var list = D.orders.filter(function (o) {
+    return (oStatus === 'all' || o.status === oStatus) && (!q || [o.name, o.email, o.phone, o.service, o.id].join(' ').toLowerCase().indexOf(q) > -1);
+  });
+  if (!list.length) return '<div class="empty">No paid orders yet. When a customer pays for a service, it appears here with a PDF.</div>';
+  return list.map(function (o) {
+    var d = o.details || {}, r = o.result, wa = 'https://wa.me/' + String(o.phone).replace(/\D/g, '');
+    var pay = o.pay_status === 'free' ? '<span class="badge free">free</span>' : (o.pay_mode === 'demo' ? '<span class="badge demo">demo payment</span>' : '<span class="badge paid">paid</span>');
+    var info = '';
+    if (r && r.type === 'marriage') {
+      var m = d.marriage || {};
+      info = '<div><h4>Groom (Male)</h4><p><b>' + esc((m.groom || {}).name) + '</b></p><p>' + esc((m.groom || {}).dob) + ' &middot; ' + esc((m.groom || {}).tobUnknown ? 'time unknown' : (m.groom || {}).tob) + ' &middot; ' + esc((m.groom || {}).pob) + '</p><p class="note">' + esc(r.groom.nakshatra) + ' p' + r.groom.pada + ', ' + esc(r.groom.rashiName) + ', ' + esc(r.groom.gana) + '</p></div>' +
+        '<div><h4>Bride (Female)</h4><p><b>' + esc((m.bride || {}).name) + '</b></p><p>' + esc((m.bride || {}).dob) + ' &middot; ' + esc((m.bride || {}).tobUnknown ? 'time unknown' : (m.bride || {}).tob) + ' &middot; ' + esc((m.bride || {}).pob) + '</p><p class="note">' + esc(r.bride.nakshatra) + ' p' + r.bride.pada + ', ' + esc(r.bride.rashiName) + ', ' + esc(r.bride.gana) + '</p></div>' +
+        '<div><h4>Reference</h4><p class="note">Groom: ' + esc(r.groom.yoni) + ' yoni, ' + esc(r.groom.nadi) + ' nadi, birth no. ' + r.groom.birthNumber + '</p><p class="note">Bride: ' + esc(r.bride.yoni) + ' yoni, ' + esc(r.bride.nadi) + ' nadi, birth no. ' + r.bride.birthNumber + '</p></div>';
+    } else {
+      info = '<div><h4>Customer details</h4><p>DOB: ' + esc(d.dob || '-') + '</p><p>Mode: ' + esc(d.mode || '-') + '</p></div><div><h4>Message</h4><p>' + esc(d.message || '-') + '</p></div>';
+    }
+    var log = (o.messages || []).map(function (m) { return '<div>' + (m.sent ? '&#9993;' : '&#9888;') + ' <b>' + esc(m.subject) + '</b> <span class="note">' + fmt(m.created_at) + (m.sent ? '' : ' (not sent)') + '</span></div>'; }).join('');
+    var subj = 'Regarding your ' + o.service + ' request';
+    var mail = composing === o.id ?
+      '<div class="mailbox"><b>Email ' + esc(o.name) + ' &lt;' + esc(o.email) + '&gt;</b>' + (D.mailReady ? '' : '<p class="note" style="color:#b3261e">Email sending is not set up on the server (add SMTP settings to .env). You can still use "Open in my mail app".</p>') +
+      '<input id="m-sub' + o.id + '" value="' + esc(subj) + '"><textarea id="m-body' + o.id + '" rows="6" placeholder="Write your reply, answer or the reading here"></textarea>' +
+      '<label style="font-weight:400"><input type="checkbox" id="m-pdf' + o.id + '" style="width:auto" checked> Attach this order PDF</label><br><br>' +
+      '<button class="btn sm" onclick="sendMail(\'' + o.id + '\')">Send email</button> <button class="btn sm dk" onclick="mailApp(\'' + o.id + '\')">Open in my mail app</button> <button class="btn sm w" onclick="composing=null;render()">Close</button></div>' : '';
+    return '<div class="ocard ' + esc(o.status) + '"><div class="ohead"><h3>' + esc(o.service) + ' &middot; ' + esc(o.name) + '</h3><span>' + pay + ' <span class="badge ' + esc(o.status) + '">' + esc(o.status) + '</span> <span class="note">' + fmt(o.paid_at || o.created_at) + ' &middot; #' + esc(o.id.slice(0, 8).toUpperCase()) + '</span></span></div>' +
+      '<div class="ogrid"><div><h4>Contact</h4><p><b>' + esc(o.name) + '</b></p><p>' + esc(o.phone) + '</p><p>' + esc(o.email) + '</p></div>' +
+      '<div><h4>Payment</h4><p>' + (o.pay_status === 'free' ? 'Free service' : '&#8377;' + esc(o.amount)) + '</p><p class="note">' + esc(o.payment_id || '') + '</p></div>' + info + '</div>' +
+      '<div class="oacts"><a class="btn sm" href="/admin/orders/' + o.id + '.pdf" target="_blank">View PDF</a> <a class="btn sm w" style="border:1px solid var(--line)" href="/admin/orders/' + o.id + '.pdf?download=1">Download PDF</a> ' +
+      '<a class="btn sm green" href="tel:' + esc(o.phone) + '">Call</a> <a class="btn sm green" href="' + wa + '?text=' + encodeURIComponent('Hello ' + o.name + ', this is Nagaika, Nakuli Numerology regarding your ' + o.service + ' request.') + '" target="_blank" rel="noopener">WhatsApp</a> ' +
+      '<button class="btn sm blue" onclick="composing=\'' + o.id + '\';render()">Email</button></div>' + mail +
+      '<div class="oacts"><select id="os' + o.id + '" style="width:auto;margin:0">' + ['new', 'contacted', 'done'].map(function (s) { return '<option' + (s === o.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select> ' +
+      '<input id="on' + o.id + '" placeholder="notes" value="' + esc(o.notes) + '" style="flex:1;min-width:180px;padding:5px 8px;border:1px solid #d9c690;border-radius:6px"> ' +
+      '<button class="btn sm" onclick="saveO(\'' + o.id + '\')">Save</button> <button class="btn sm red" onclick="delO(\'' + o.id + '\')">Delete</button></div>' +
+      (log ? '<div class="msglog">' + log + '</div>' : '') + '</div>';
+  }).join('');
+}
+function render() {
+  var n = D.enquiries.filter(function (e) { return e.status === 'new'; }).length;
+  var paid = D.payments.filter(function (p) { return p.status === 'paid'; });
+  var newOrders = D.orders.filter(function (o) { return o.status === 'new'; }).length;
+  document.getElementById('stats').innerHTML =
+    '<div class="stat"><b>' + D.orders.length + '</b><span>Paid orders</span></div>' +
+    '<div class="stat"><b>' + newOrders + '</b><span>Orders to contact</span></div>' +
+    '<div class="stat"><b>' + D.enquiries.length + '</b><span>Enquiries (' + n + ' new)</span></div>' +
+    '<div class="stat"><b>' + D.chats.length + '</b><span>Chatbot leads</span></div>' +
+    '<div class="stat"><b>&#8377;' + paid.reduce(function (a, p) { return a + (p.amount || 0); }, 0) + '</b><span>' + paid.length + ' online payments</span></div>';
+  var h = '';
+  if (tab === 'orders') {
+    h = '<div class="bar"><input id="o-q" placeholder="Search name, phone, email, service or order number" value="' + esc(oQ) + '">' +
+      '<select id="o-s">' + [['all', 'All statuses'], ['new', 'New'], ['contacted', 'Contacted'], ['done', 'Done']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === oStatus ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
+      '<div id="ord-list">' + orderCards() + '</div>';
+  } else if (tab === 'enq') {
+    h = '<div class="bar"><input id="f-q" placeholder="Search name, phone, email, service or message" value="' + esc(fQ) + '">' +
+      '<select id="f-s">' + [['all', 'All statuses'], ['new', 'New'], ['contacted', 'Contacted'], ['done', 'Done']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === fStatus ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
+      '<div id="enq-table">' + enqRows() + '</div>';
+  } else if (tab === 'pay') {
+    h = D.payments.length ? '<div class="wrap"><table class="stk"><tr><th>Date</th><th>Name</th><th>Service</th><th>Amount</th><th>Order</th><th>Payment</th><th>Status</th></tr>' +
+      D.payments.map(function (p) { return '<tr><td data-l="Date">' + fmt(p.created_at) + '</td><td data-l="Name">' + esc(p.name) + '</td><td data-l="Service">' + esc(p.service) + '</td><td data-l="Amount">&#8377;' + esc(p.amount) + '</td><td data-l="Order">' + esc(p.order_id) + '</td><td data-l="Payment">' + esc(p.payment_id) + '</td><td data-l="Status">' + esc(p.status) + '</td></tr>'; }).join('') + '</table></div>'
+      : '<div class="empty">No payments yet. Online payment turns on when Razorpay keys are set.</div>';
+  } else if (tab === 'blogs') {
+    var b = editing || { title: '', summary: '', image: '', body: '', published: 1 };
+    h = '<div class="panel"><b>' + (editing ? 'Edit article' : 'Write a new article') + '</b><br>' +
+      '<label>Title</label><input id="b-title" maxlength="200" value="' + esc(b.title) + '">' +
+      '<label>Short summary (shown in the list)</label><input id="b-summary" maxlength="400" value="' + esc(b.summary) + '">' +
+      '<label>Cover image link (optional, https://... or img/filename.jpg)</label><input id="b-image" value="' + esc(b.image) + '">' +
+      '<label>Article text (leave a blank line between paragraphs)</label><textarea id="b-body" rows="10">' + esc(b.body) + '</textarea>' +
+      '<label><input type="checkbox" id="b-pub" style="width:auto"' + (b.published ? ' checked' : '') + '> Published (visible on the website)</label><br><br>' +
+      '<button class="btn" onclick="saveBlog()">' + (editing ? 'Save changes' : 'Publish article') + '</button> ' +
+      (editing ? '<button class="btn w" onclick="editing=null;render()">Cancel</button>' : '') + '</div>' +
+      (D.blogs.length ? '<div class="wrap"><table class="stk"><tr><th>Date</th><th>Title</th><th>Status</th><th></th></tr>' +
+      D.blogs.map(function (p) {
+        return '<tr><td data-l="Date">' + new Date(p.created_at).toLocaleDateString('en-IN') + '</td><td data-l="Title">' + esc(p.title) + '</td><td data-l="Status">' + (p.published ? 'Published' : 'Draft') + '</td>' +
+          '<td data-l=""><button class="btn sm" onclick="editBlog(' + p.id + ')">Edit</button> <button class="btn sm red" onclick="delBlog(' + p.id + ')">Delete</button></td></tr>';
+      }).join('') + '</table></div>' : '<div class="empty">No articles yet.</div>');
+  } else if (tab === 'vids') {
+    h = '<div class="panel"><b>Add a YouTube video or Short</b><p class="note">Upload the video to your YouTube channel first, then paste its link here. It appears on the website straight away, with its YouTube thumbnail.</p>' +
+      '<label>YouTube link</label><input id="v-url" placeholder="https://www.youtube.com/watch?v=...  or  https://youtube.com/shorts/...">' +
+      '<label>Title (optional)</label><input id="v-title" maxlength="150">' +
+      '<label><input type="checkbox" id="v-short" style="width:auto"> This is a Short</label><br><br>' +
+      '<button class="btn" onclick="addVideo()">Add to website</button></div>' +
+      (D.videos.length ? '<div class="vgrid">' + D.videos.map(function (v) {
+        return '<div class="vcard"><img src="https://img.youtube.com/vi/' + esc(v.youtube_id) + '/mqdefault.jpg" alt=""><b>' + esc(v.title || '(no title)') + '</b>' +
+          '<div class="note">' + (v.kind === 'short' ? 'Short' : 'Video') + '</div><button class="btn sm red" onclick="delVideo(' + v.id + ')">Remove</button></div>';
+      }).join('') + '</div>' : '<div class="empty">No videos added yet.</div>');
+  } else if (tab === 'settings') {
+    var s = D.settings || {};
+    h = '<div class="panel" style="max-width:640px"><b>Social media links</b><p class="note">These links are used in the website menu, footer and the Subscribe buttons. Use the full https:// link, or # to leave one blank.</p>' +
+      '<label>YouTube channel</label><input id="st-youtube" value="' + esc(s.youtube) + '">' +
+      '<label>Instagram</label><input id="st-instagram" value="' + esc(s.instagram) + '">' +
+      '<label>Facebook page</label><input id="st-facebook" value="' + esc(s.facebook) + '">' +
+      '<label>LinkedIn</label><input id="st-linkedin" value="' + esc(s.linkedin) + '">' +
+      '<button class="btn" onclick="saveSettings()">Save links</button></div>';
+  } else {
+    h = D.chats.length ? '<div class="wrap"><table class="stk"><tr><th>Date</th><th>Challenge</th><th>Assistance</th><th>Service area</th></tr>' +
+      D.chats.map(function (c) { return '<tr><td data-l="Date">' + fmt(c.created_at) + '</td><td data-l="Challenge">' + esc(c.topic) + '</td><td data-l="Assistance">' + esc(c.solution) + '</td><td data-l="Service area">' + esc(c.service) + '</td></tr>'; }).join('') + '</table></div>'
+      : '<div class="empty">No chatbot leads yet.</div>';
+  }
+  document.getElementById('view').innerHTML = (flashMsg ? '<div class="flash' + (flashMsg.bad ? ' bad' : '') + '">' + esc(flashMsg.t) + '</div>' : '') + h;
+  flashMsg = null;
+  var q = document.getElementById('f-q'), s2 = document.getElementById('f-s');
+  var oq = document.getElementById('o-q'), os = document.getElementById('o-s');
+  if (oq) oq.oninput = function () { oQ = oq.value; document.getElementById('ord-list').innerHTML = orderCards(); };
+  if (os) os.onchange = function () { oStatus = os.value; document.getElementById('ord-list').innerHTML = orderCards(); };
+  if (q) q.oninput = function () { fQ = q.value; document.getElementById('enq-table').innerHTML = enqRows(); };
+  if (s2) s2.onchange = function () { fStatus = s2.value; document.getElementById('enq-table').innerHTML = enqRows(); };
+}
+function val(id) { return document.getElementById(id).value; }
+function saveBlog() {
+  var body = { title: val('b-title'), summary: val('b-summary'), image: val('b-image'), body: val('b-body'), published: document.getElementById('b-pub').checked };
+  var req = editing ? api('/admin/api/blog/' + editing.id, 'PUT', body) : api('/admin/api/blog', 'POST', body);
+  req.then(function (d) {
+    if (!d.ok) return flash(d.error || 'Could not save.', true);
+    var was = editing; editing = null;
+    load().then(function () { flash(was ? 'Article updated.' : 'Article published.'); });
+  });
+}
+function editBlog(id) { api('/admin/api/blog/' + id).then(function (b) { editing = b; render(); window.scrollTo(0, 0); }); }
+function delBlog(id) { if (confirm('Delete this article permanently?')) api('/admin/api/blog/' + id, 'DELETE').then(function () { editing = null; load().then(function () { flash('Article deleted.'); }); }); }
+function addVideo() {
+  api('/admin/api/video', 'POST', { url: val('v-url'), title: val('v-title'), kind: document.getElementById('v-short').checked ? 'short' : 'video' })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not add.', true); load().then(function () { flash('Added. It is now live on the website.'); }); });
+}
+function delVideo(id) { if (confirm('Remove this video from the website? (It stays on YouTube.)')) api('/admin/api/video/' + id, 'DELETE').then(function () { load().then(function () { flash('Video removed from the website.'); }); }); }
+function saveSettings() {
+  api('/admin/api/settings', 'POST', { youtube: val('st-youtube'), instagram: val('st-instagram'), facebook: val('st-facebook'), linkedin: val('st-linkedin') })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not save.', true); load().then(function () { flash('Links saved.'); }); });
+}
+function saveO(id) {
+  api('/admin/api/orders/' + id, 'POST', { status: document.getElementById('os' + id).value, notes: document.getElementById('on' + id).value })
+    .then(load).then(function () { flash('Order updated.'); });
+}
+function delO(id) { if (confirm('Delete this order and its message history permanently?')) api('/admin/api/orders/' + id, 'DELETE').then(load).then(function () { flash('Order deleted.'); }); }
+function sendMail(id) {
+  api('/admin/api/orders/' + id + '/email', 'POST', { subject: val('m-sub' + id), message: val('m-body' + id), attachPdf: document.getElementById('m-pdf' + id).checked })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not send.', true); composing = null; load().then(function () { flash('Email sent to the customer.'); }); });
+}
+function mailApp(id) {
+  var o = D.orders.filter(function (x) { return x.id === id; })[0];
+  location.href = 'mailto:' + encodeURIComponent(o.email) + '?subject=' + encodeURIComponent(val('m-sub' + id)) + '&body=' + encodeURIComponent(val('m-body' + id));
+}
+function saveE(id) {
+  fetch('/admin/api/enquiry/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: document.getElementById('s' + id).value, notes: document.getElementById('n' + id).value }) })
+    .then(load).then(function () { flash('Enquiry updated.'); });
+}
+function delE(id) { if (confirm('Delete this enquiry?')) fetch('/admin/api/enquiry/' + id, { method: 'DELETE' }).then(load); }
+document.querySelectorAll('.tabs button').forEach(function (b) {
+  b.onclick = function () { document.querySelectorAll('.tabs button').forEach(function (x) { x.className = ''; }); b.className = 'on'; tab = b.dataset.t; editing = null; render(); };
+});
+load();
+</script>
+</body>
+</html>

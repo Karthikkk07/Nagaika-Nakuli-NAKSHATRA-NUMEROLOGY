@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -12 561 561">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="60%">
+      <stop offset="0" stop-color="#e5484d"/>
+      <stop offset="1" stop-color="#a51c1c"/>
+    </radialGradient>
+    <linearGradient id="mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="540">
+      <stop offset="0" stop-color="#ffc21a"/>
+      <stop offset="1" stop-color="#ff8000"/>
+    </linearGradient>
+  </defs>
+  <circle cx="274.5" cy="268" r="276" fill="url(#bg)" stroke="#ffe0a0" stroke-width="8"/>
+  <g transform="translate(274.5 268) scale(0.76) translate(-274.5 -268)">
+    <polyline points="235,520 340,10 80,288 469,288 420,525 283,288" fill="none" stroke="url(#mark)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

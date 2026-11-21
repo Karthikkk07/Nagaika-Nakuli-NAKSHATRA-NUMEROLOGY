@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Numerology Calculators: Life Path, Name, Mobile &amp; Vehicle Number | Nagaika, Nakuli Numerology</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Free Numerology Calculators | Nagaika, Nakuli Numerology">
+<meta property="og:description" content="Free life path, birth, name, mobile and vehicle number calculators.">
+<meta name="twitter:card" content="summary">
+</head>
+<body>
+<div class="page-title"><h1>Free Numerology Calculators</h1></div>
+<section class="block">
+  <div class="layout" style="grid-template-columns:minmax(0,1fr) 270px;gap:18px">
+    <div>
+      <div class="tabs" id="tabs">
+        <button data-t="life">Life Path &amp; Birth Number</button>
+        <button data-t="name">Name Number</button>
+        <button data-t="mobile">Mobile Number</button>
+        <button data-t="vehicle">Vehicle Number</button>
+      </div>
+
+      <div class="card tool" id="t-life">
+        <h3>Life Path &amp; Birth Number</h3>
+        <p>Your life path number comes from your full date of birth. Your birth number comes from the day you were born.</p>
+        <form data-form="life"><div class="field" style="max-width:260px"><label for="dob">Date of birth</label><input type="date" id="dob" required></div><button class="btn" type="submit">Calculate</button></form>
+        <div class="result" id="o-life" hidden></div>
+      </div>
+
+      <div class="card tool" id="t-name">
+        <h3>Name Number</h3>
+        <p>Letters are converted to numbers using the Pythagorean system (A=1, B=2 &hellip; I=9, J=1 and so on).</p>
+        <form data-form="name"><div class="field" style="max-width:380px"><label for="nm">Full name</label><input id="nm" required maxlength="80" placeholder="e.g. Anand Ram Palisetty"></div><button class="btn" type="submit">Calculate</button></form>
+        <div class="result" id="o-name" hidden></div>
+      </div>
+
+      <div class="card tool" id="t-mobile">
+        <h3>Mobile Number Numerology</h3>
+        <p>Enter your phone number to see its total and the number it reduces to.</p>
+        <form data-form="mobile"><div class="field" style="max-width:260px"><label for="mb">Mobile number</label><input id="mb" type="tel" inputmode="numeric" required maxlength="20" placeholder="9845610894"></div><button class="btn" type="submit">Check</button></form>
+        <div class="result" id="o-mobile" hidden></div>
+      </div>
+
+      <div class="card tool" id="t-vehicle">
+        <h3>Vehicle Number Numerology</h3>
+        <p>Enter the number part of your registration (for example 4321). Letters are ignored.</p>
+        <form data-form="vehicle"><div class="field" style="max-width:260px"><label for="vh">Vehicle number</label><input id="vh" required maxlength="20" placeholder="KA 01 AB 4321"></div><button class="btn" type="submit">Check</button></form>
+        <div class="result" id="o-vehicle" hidden></div>
+      </div>
+
+      <p class="disclaimer" style="margin-top:16px">Numerology is a traditional belief system and these results are for reflection, not predictions. Different schools (Pythagorean, Chaldean, Indian) calculate differently. For a personal reading, <a href="contact.html?service=Personal%20Numerology%20Reading">book a consultation</a>.</p>
+    </div>
+    <aside style="border:0;background:none;padding:0">
+      <div class="box dark"><h3>Want a personal reading?</h3><div class="bd">A calculator gives you a number. A consultation explains what it means for you.<br><br><a class="btn sm" href="contact.html?service=Personal%20Numerology%20Reading">Book a Reading</a></div></div>
+      <div class="box"><h3>Numbers 1&ndash;9</h3><div class="bd">Read what each number means on our <a href="blog.html">numerology blog</a>.</div></div>
+    </aside>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/leads.js"></script>
+<script src="js/numerology.js"></script>
+<script>
+(function () {
+  var N = NUMEROLOGY, M = N.MEAN, q = new URLSearchParams(location.search);
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  function show(id, html, ctx) {
+    var o = document.getElementById('o-' + id); o.innerHTML = html; o.hidden = false;
+    if (ctx) LEADS.attach(o, ctx);
+  }
+  function profile(n) {
+    var m = M[n];
+    return '<b>' + m.title + '</b> (ruling planet ' + m.planet + ')<br>' + m.traits + '<br><span class="muted">Lucky day: ' + m.day + ' &middot; Lucky colours: ' + m.color + '</span>';
+  }
+
+  var tools = ['life', 'name', 'mobile', 'vehicle'], tabs = document.querySelectorAll('#tabs button');
+  function pick(t) {
+    tools.forEach(function (x) { document.getElementById('t-' + x).style.display = x === t ? '' : 'none'; });
+    tabs.forEach(function (b) { b.classList.toggle('on', b.dataset.t === t); });
+  }
+  tabs.forEach(function (b) { b.onclick = function () { pick(b.dataset.t); }; });
+  pick(tools.indexOf(q.get('tool')) > -1 ? q.get('tool') : 'life');
+
+  document.querySelector('[data-form=life]').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = document.getElementById('dob').value; if (!v) return;
+    var a = v.split('-').map(Number), lp = N.lifePath(a[0], a[1], a[2]), bn = N.birthNumber(a[2]);
+    show('life', '<div class="big">' + lp + '</div><p><b>Life path number ' + lp + '</b><br>' + profile(lp) + '</p><p><b>Birth number ' + bn + '</b> (from day ' + a[2] + ')<br>' + profile(bn) + '</p>',
+      { topic: 'life path ' + lp + ', birth number ' + bn, dob: v, share: 'My life path number is ' + lp + ' and my birth number is ' + bn + '.' });
+  });
+  document.querySelector('[data-form=name]').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var nm = document.getElementById('nm').value.trim();
+    if (!/[A-Za-z]/.test(nm)) return show('name', 'Please enter a name using English letters.');
+    var r = N.nameNumbers(nm);
+    show('name', '<div class="big">' + r.destiny + '</div><p><b>Destiny (expression) number ' + r.destiny + '</b> for ' + esc(nm) + '<br>' + profile(r.destiny) + '</p>' +
+      '<p><b>Soul urge number ' + r.soul + '</b> (vowels): your inner motivation.<br><b>Personality number ' + r.personality + '</b> (consonants): how others see you.</p>',
+      { topic: 'name number ' + r.destiny + ' (soul urge ' + r.soul + ', personality ' + r.personality + ')', share: 'My name number is ' + r.destiny + '.' });
+  });
+  function numTool(id, field, label) {
+    document.querySelector('[data-form=' + id + ']').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var r = N.numberSum(document.getElementById(field).value);
+      if (!r) return show(id, 'Please enter some digits.');
+      var m = M[r.number];
+      show(id, '<div class="big">' + r.number + '</div><p>Digits add up to <b>' + r.total + '</b>, which reduces to <b>' + r.number + '</b>.<br>' + m.title + ' (' + m.planet + ')</p><p>' + m[id] + '</p><p class="muted">' + label + '</p>',
+        { topic: id + ' number ' + r.number + ' (total ' + r.total + ')', share: 'My ' + id + ' number adds up to ' + r.number + '.' });
+    });
+  }
+  numTool('mobile', 'mb', 'Whether a number suits you is usually judged against your own birth number. Ask us for a personal check.');
+  numTool('vehicle', 'vh', 'Whether a vehicle number suits you is usually judged against the owner\u2019s birth number. Ask us for a personal check.');
+})();
+</script>
+</body>
+</html>

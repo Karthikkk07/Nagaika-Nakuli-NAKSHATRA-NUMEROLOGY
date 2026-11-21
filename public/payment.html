@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pay Online | Nagaika, Nakuli Numerology</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Pay Online</h1></div></div>
+<section class="block">
+  <div class="wrap grid" style="align-items:start">
+    <div class="card">
+      <h3>Book &amp; pay for a service</h3>
+      <p class="muted" style="margin-top:0">Pay online (UPI, cards, netbanking). Your details and payment receipt go straight to our numerologist, who will contact you.</p>
+      <div class="msg" id="demo-note" style="display:none;background:#fff8e1;color:#7a4b00"><b>Demo mode:</b> online payment is not connected yet, so no real money is charged. The full flow still works.</div>
+      <form id="pform" novalidate>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="field"><label for="psvc">Service</label><select id="psvc"></select></div>
+        <div class="field"><label for="pname">Your name</label><input id="pname" autocomplete="name" maxlength="100"></div>
+        <div class="row">
+          <div class="field"><label for="pphone">Mobile number</label><input id="pphone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="20"></div>
+          <div class="field"><label for="pemail">Email</label><input id="pemail" type="email" autocomplete="email" maxlength="150"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="pdob">Date of birth (optional)</label><input id="pdob" type="date"></div>
+          <div class="field"><label for="pmode">Preferred mode</label><select id="pmode"><option>Face to face</option><option>WhatsApp</option><option>Phone call</option></select></div>
+        </div>
+        <div class="field"><label for="pmsg">Anything we should know? (optional)</label><textarea id="pmsg" rows="3" maxlength="1500"></textarea></div>
+        <div class="field" id="amt-wrap"><label for="pamt">Amount (&#8377;)</label><input id="pamt" type="number" min="100" max="100000" value="1000"><div class="muted" id="amt-note" style="font-size:.82rem"></div></div>
+        <div id="mar-note" class="msg" style="display:none;background:#fff8e1;color:#7a4b00">Marriage matching needs the birth details of both people. <a href="marriage.html"><b>Use the Marriage Matching form &rarr;</b></a></div>
+        <button class="btn" id="pay" type="submit">Pay &amp; book</button>
+      </form>
+      <div class="msg" id="pmsg-out"></div>
+      <div id="pdone" style="display:none"></div>
+    </div>
+    <div class="card" id="intl">
+      <h3>International customers</h3>
+      <p>Pay with PayPal, then send us a message with your name and the service so we can confirm your booking.</p>
+      <a class="btn dark" id="paypal" href="#" target="_blank" rel="noopener" style="display:none">Pay with PayPal</a>
+      <p id="paypal-na" class="muted">PayPal is not set up yet. Please <a href="contact.html">contact us</a>.</p>
+    </div>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/services-data.js"></script>
+<script src="js/checkout.js"></script>
+<script src="js/payment-page.js"></script>
+</body>
+</html>

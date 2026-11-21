@@ -1,5 +1,7 @@
 # Nagaika, Nakuli Numerology
 
+**Live site:** https://nagaika-nakuli-nakshatra-numerology.onrender.com/
+
 A numerology and Nakshatra website for a consultancy in Bengaluru: yellow top bar, right-hand sidebar, Moon Nakshatra finder, the 27 Nakshatras, numerology calculators and a downloadable study guide. The backend from the first version is unchanged.
 
 ## What's new in this design

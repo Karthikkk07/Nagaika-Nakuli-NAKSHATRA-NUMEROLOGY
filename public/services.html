@@ -20,12 +20,9 @@
 <script src="js/services-data.js"></script>
 <script>
 document.getElementById('svc').innerHTML = SERVICES.map(function (s) {
-  return '<div class="card svc"><h3>' + s.name + '</h3><p>' + s.desc + '</p><p class="price">' + (s.fee ? '&#8377;' + s.fee.toLocaleString('en-IN') + ' per consultation' : (s.free ? 'Free, subject to availability' : 'Contact for fee')) +
-    '</p><div class="actions">' + (s.name === 'Marriage Compatibility'
-      ? '<a class="btn sm" href="marriage.html">Check &amp; Pay</a> '
-      : s.name === 'Nadi Astrology'
-      ? '<a class="btn sm" href="nadi.html">Learn &amp; Book</a> '
-      : '<a class="btn sm" href="payment.html?service=' + encodeURIComponent(s.name) + '">' + (s.free ? 'Request free help' : 'Book &amp; Pay') + '</a> ') +
+  var href = s.name === 'Marriage Compatibility' ? 'marriage.html' : s.name === 'Nadi Astrology' ? 'nadi.html' : 'service.html?service=' + encodeURIComponent(s.name);
+  return '<div class="card svc"><h3><a href="' + href + '">' + s.name + '</a></h3><p>' + s.desc + '</p><p class="price">' + (s.fee ? '&#8377;' + s.fee.toLocaleString('en-IN') + ' per consultation' : (s.free ? 'Free, subject to availability' : 'Contact for fee')) +
+    '</p><div class="actions"><a class="btn sm" href="' + href + '">' + (s.free ? 'View &amp; request help' : 'View &amp; Pay') + '</a> ' +
     '<a class="btn dark sm alt" href="contact.html?service=' + encodeURIComponent(s.name) + '">Enquire</a></div></div>';
 }).join('');
 </script>

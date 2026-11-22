@@ -235,7 +235,7 @@
     var s = SERVICES.filter(function (x) { return x.name === nm; })[0];
     return '<div class="card svc"><h3>' + s.name + '</h3><p>' + s.desc + '</p><p class="price">' +
       (s.fee ? '&#8377;' + s.fee.toLocaleString('en-IN') + ' per consultation' : (s.free ? 'Free, subject to availability' : 'Contact for fee')) +
-      '</p><div class="actions">' + (s.name === 'Marriage Compatibility' ? '<a class="btn sm" href="marriage.html">Check &amp; Pay</a>' : s.name === 'Nadi Astrology' ? '<a class="btn sm" href="nadi.html">Learn &amp; Book</a>' : '<a class="btn sm" href="payment.html?service=' + encodeURIComponent(s.name) + '">' + (s.free ? 'Request free help' : 'Book &amp; Pay') + '</a>') + ' <a class="btn sm alt" href="contact.html?service=' + encodeURIComponent(s.name) + '">Enquire</a></div></div>';
+      '</p><div class="actions">' + (s.name === 'Marriage Compatibility' ? '<a class="btn sm" href="marriage.html">Check &amp; Pay</a>' : s.name === 'Nadi Astrology' ? '<a class="btn sm" href="nadi.html">Learn &amp; Book</a>' : '<a class="btn sm" href="service.html?service=' + encodeURIComponent(s.name) + '">' + (s.free ? 'View &amp; request help' : 'View &amp; Pay') + '</a>') + ' <a class="btn sm alt" href="contact.html?service=' + encodeURIComponent(s.name) + '">Enquire</a></div></div>';
   }).join('');
 
   // Today's number (universal day number)

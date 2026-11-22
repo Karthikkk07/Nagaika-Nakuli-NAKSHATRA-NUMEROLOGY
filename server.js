@@ -18,6 +18,9 @@ app.use((req, res, next) => {
   next();
 });
 app.get('/healthz', (req, res) => res.json({ ok: true }));
+// Nadi Astrology orders carry a small fingerprint image, so only order creation gets a larger body limit
+const bigJson = express.json({ limit: '1mb' });
+app.use((req, res, next) => (req.method === 'POST' && req.path === '/api/orders' ? bigJson(req, res, next) : next()));
 app.use(express.json({ limit: '200kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -266,8 +269,20 @@ const validDob = (s) => {
 };
 const validTob = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(s || ''));
 const MARRIAGE = 'Marriage Compatibility';
+const NADI = 'Nadi Astrology';
+const NADI_HANDS = ['Right thumb', 'Left thumb', 'Other finger'];
 
 class BadInput extends Error {}
+
+// Fingerprint photo from the browser: a JPEG or PNG data URL of at most about 600 KB
+function cleanFingerprint(s) {
+  const m = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(String(s || ''));
+  if (!m || m[2].length > 800000) throw new BadInput('Please attach a clear photo of your fingerprint (JPEG or PNG, under 600 KB).');
+  const buf = Buffer.from(m[2], 'base64');
+  const ok = m[1] === 'jpeg' ? buf[0] === 0xff && buf[1] === 0xd8 : buf.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  if (!ok) throw new BadInput('That file is not a valid image. Please attach your fingerprint as a JPEG or PNG photo.');
+  return `data:image/${m[1]};base64,${m[2]}`;
+}
 
 function cleanPerson(p, label) {
   const c = (v, n) => String(v || '').replace(/[\r\n]+/g, ' ').trim().slice(0, n);
@@ -340,6 +355,14 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
       details.marriage = { groom, bride };
       const m = engine.matchPair(groom, bride);
       result = { type: 'marriage', groom: m.groom, bride: m.bride };
+    } else if (svc.name === NADI) {
+      if (b.dob && !validDob(b.dob)) throw new BadInput('Please enter a valid date of birth.');
+      if (!b.consent) throw new BadInput('Please confirm that you agree to share your fingerprint for this reading.');
+      details.dob = b.dob || '';
+      details.mode = c(b.mode, 40);
+      details.message = String(b.message || '').trim().slice(0, 1500);
+      details.hand = NADI_HANDS.includes(b.hand) ? b.hand : NADI_HANDS[0];
+      details.fingerprint = cleanFingerprint(b.fingerprint);
     } else {
       if (b.dob && !validDob(b.dob)) throw new BadInput('Please enter a valid date of birth.');
       details.dob = b.dob || '';
@@ -472,8 +495,19 @@ adminRouter.use(adminAuth);
 adminRouter.get('/', (req, res) => res.sendFile(path.join(__dirname, 'admin', 'admin.html')));
 adminRouter.get('/api/data', (req, res) => {
   const msgs = store.listOrderMessages();
-  const orders = store.listOrders().map((o) => ({ ...o, details: JSON.parse(o.details || '{}'), result: o.result ? JSON.parse(o.result) : null, messages: msgs.filter((m) => m.order_id === o.id) }));
+  const orders = store.listOrders().map((o) => {
+    const details = JSON.parse(o.details || '{}');
+    const hasFingerprint = !!details.fingerprint;
+    delete details.fingerprint; // served separately by /orders/:id/fingerprint
+    return { ...o, details: { ...details, hasFingerprint }, result: o.result ? JSON.parse(o.result) : null, messages: msgs.filter((m) => m.order_id === o.id) };
+  });
   res.json({ enquiries: store.listEnquiries(), payments: store.listPayments(), chats: store.listChatLeads(), orders, mailReady: !!mailer });
+});
+adminRouter.get('/orders/:id/fingerprint', (req, res) => {
+  const o = store.getOrder(req.params.id);
+  const m = o && /^data:(image\/(?:jpeg|png));base64,(.+)$/.exec(JSON.parse(o.details || '{}').fingerprint || '');
+  if (!m) return res.status(404).send('Not found');
+  res.type(m[1]).set('Content-Disposition', `${req.query.download ? 'attachment' : 'inline'}; filename="fingerprint-${o.id.slice(0, 8)}.${m[1] === 'image/png' ? 'png' : 'jpg'}"`).send(Buffer.from(m[2], 'base64'));
 });
 adminRouter.get('/orders/:id.pdf', async (req, res) => {
   const o = store.getOrder(req.params.id);

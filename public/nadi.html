@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nadi Astrology by Fingerprint | Nagaika, Nakuli Numerology</title>
+<meta name="description" content="Nadi Astrology consultation based on your fingerprint. Every fingerprint is unique. Send your fingerprint, pay online and our numerologist contacts you.">
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Nadi Astrology</h1></div></div>
+<section class="block" id="about-nadi">
+  <div class="wrap">
+    <h2>Nadi Astrology and your fingerprint</h2>
+    <p>Nadi astrology is a traditional system of reading in which a person&rsquo;s life is studied from records that are matched to that person individually. The starting point is the <b>fingerprint</b> (thumb impression).</p>
+    <div class="grid grid3">
+      <div class="card"><h3>Every fingerprint is unique</h3><p>No two people have the same fingerprint, not even identical twins. This is why the police and courts use fingerprints to tell one person from another, and why every person has a different one.</p></div>
+      <div class="card"><h3>Why we ask for it</h3><p>Because your fingerprint belongs only to you, it is the basis on which we check and match your reading. Once you send it, we study it and begin from your own print rather than from general details.</p></div>
+      <div class="card"><h3>What happens next</h3><p>You send a clear fingerprint and pay the fee. Our numerologist checks the fingerprint, then contacts you on the mobile number or email you give to discuss your reading.</p></div>
+    </div>
+    <h3 style="margin-top:22px">How to send a good fingerprint</h3>
+    <ol>
+      <li>Wash and dry your hands. Press your thumb (the right thumb for men and the left for women is the usual custom) on an ink pad, then press it firmly once on plain white paper without rolling or smudging.</li>
+      <li>Take a clear, well-lit, straight-on photo of the print. Fill the frame with the print and avoid shadows and glare.</li>
+      <li>Attach the photo in the form below. A phone camera is fine.</li>
+    </ol>
+  </div>
+</section>
+<section class="block" id="book" style="padding-top:0">
+  <div class="wrap">
+    <div id="nform-wrap">
+      <h2>Book Nadi Astrology</h2>
+      <div class="msg" id="demo-note" style="display:none;background:#fff8e1;color:#7a4b00"><b>Demo mode:</b> online payment is not connected yet, so no real money is charged. The full flow still works.</div>
+      <p class="req-note"><span class="req">*</span> Required</p>
+      <form id="nform" novalidate>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="card">
+          <h3 style="margin-top:0">Your fingerprint</h3>
+          <div class="row">
+            <div class="field"><label for="n-hand">Fingerprint of <span class="req">*</span></label><select id="n-hand"><option>Right thumb</option><option>Left thumb</option><option>Other finger</option></select></div>
+            <div class="field"><label for="n-file">Photo of your fingerprint <span class="req">*</span></label><input id="n-file" type="file" accept="image/*" aria-required="true"></div>
+          </div>
+          <div id="n-preview" hidden><img id="n-img" alt="Your fingerprint photo" style="max-width:220px;max-height:220px;border:1px solid var(--line);border-radius:6px;background:#fff"></div>
+          <label class="chk"><input type="checkbox" id="n-consent"> I agree to share my fingerprint with Nagaika, Nakuli Numerology only for this Nadi Astrology reading. <span class="req">*</span></label>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3 style="margin-top:0">Your contact details</h3>
+          <p class="muted" style="margin:0 0 10px;font-size:.88rem">Our numerologist uses these to contact you. Your details and fingerprint are kept private.</p>
+          <div class="row">
+            <div class="field"><label for="n-name">Your name <span class="req">*</span></label><input id="n-name" maxlength="100" autocomplete="name" aria-required="true"></div>
+            <div class="field"><label for="n-phone">Mobile number <span class="req">*</span></label><input id="n-phone" type="tel" inputmode="numeric" maxlength="20" autocomplete="tel" aria-required="true"></div>
+            <div class="field"><label for="n-email">Email <span class="req">*</span></label><input id="n-email" type="email" maxlength="150" autocomplete="email" aria-required="true"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="n-dob">Date of birth (optional)</label><input id="n-dob" type="date" min="1900-01-01"></div>
+            <div class="field"><label for="n-mode">Preferred mode</label><select id="n-mode"><option>Face to face</option><option>WhatsApp</option><option>Phone call</option></select></div>
+          </div>
+          <div class="field"><label for="n-msg">Anything we should know? (optional)</label><textarea id="n-msg" rows="3" maxlength="1500"></textarea></div>
+          <div class="mm-fee"><span>Service fee</span><b id="fee">&#8377;2,000</b></div>
+          <button class="btn" id="npay" type="submit">Pay &amp; send fingerprint</button>
+          <div class="msg" id="nmsg" role="status"></div>
+        </div>
+        <p class="disclaimer" style="margin-top:12px">Guidance for reflection, not a prediction or a guarantee. Your fingerprint is used only to prepare your reading and is not shared with anyone else.</p>
+      </form>
+    </div>
+    <div id="nresult" hidden></div>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/services-data.js"></script>
+<script src="js/checkout.js"></script>
+<script src="js/nadi.js"></script>
+</body>
+</html>

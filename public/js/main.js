@@ -65,12 +65,12 @@
     ['Home', 'index.html'],
     ['Nakshatra', 'nakshatra.html', [['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Why Study Nakshatras?', 'nakshatra.html#why'], ['Numerology Numbers 1-9', 'nakshatra.html#numbers'], ['Study Worksheet', 'nakshatra.html#worksheet'], ['Study Guide (PDF)', 'downloads/Nakshatra_Numerology_Study_Guide_English.pdf']]],
     ['Numerology', 'tools.html', [['Life Path &amp; Birth Number', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'], ['Vehicle Number', 'tools.html?tool=vehicle'], ['Meaning of Numbers 1-9', 'blog.html']]],
-    ['Services', 'services.html', [['Nakshatra &amp; Numerology Reading', 'payment.html?service=Nakshatra%20%26%20Numerology%20Reading'], ['Marriage Compatibility', 'marriage.html'], ['Career Guidance', 'payment.html?service=Career%20Guidance'], ['Naming Consultation', 'payment.html?service=Naming%20Consultation'], ['Corporate Consultation', 'payment.html?service=Corporate%20Consultation'], ['All Services', 'services.html']]],
+    ['Services', 'services.html', [['Nakshatra &amp; Numerology Reading', 'payment.html?service=Nakshatra%20%26%20Numerology%20Reading'], ['Marriage Compatibility', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Career Guidance', 'payment.html?service=Career%20Guidance'], ['Naming Consultation', 'payment.html?service=Naming%20Consultation'], ['Corporate Consultation', 'payment.html?service=Corporate%20Consultation'], ['All Services', 'services.html']]],
     ['Blog', 'blog.html'], ['Videos', 'videos.html'], ['Gallery', 'gallery.html'],
     ['About', 'about.html', [['About Us', 'about.html'], ['Why Choose Us', 'why-choose-us.html']]],
     ['Contact', 'contact.html'], ['Pay Online', 'payment.html'],
   ];
-  var SUB = [['Marriage Matching', 'marriage.html'], ['Horoscope in Numerology', 'index.html#horoscope'], ['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Life Path Calculator', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'],
+  var SUB = [['Marriage Matching', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Horoscope in Numerology', 'index.html#horoscope'], ['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Life Path Calculator', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'],
     ['Vehicle Number', 'tools.html?tool=vehicle'], ['Free Consultation', 'contact.html?service=Free%20Consultation%20for%20People%20in%20Need']];
 
   function isActive(item) {

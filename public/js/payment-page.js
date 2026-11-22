@@ -1,6 +1,6 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var sel = $('psvc'), q = new URLSearchParams(location.search), MARRIAGE = 'Marriage Compatibility';
+  var sel = $('psvc'), q = new URLSearchParams(location.search), MARRIAGE = 'Marriage Compatibility', NADI = 'Nadi Astrology';
   SERVICES.forEach(function (s) { var o = document.createElement('option'); o.textContent = s.name; sel.appendChild(o); });
   if (q.get('service')) sel.value = q.get('service');
   if (q.get('amount')) $('pamt').value = q.get('amount');
@@ -17,9 +17,10 @@
 
   // Fixed fee, free service, or a free-choice amount
   function sync() {
-    var s = svc(), amt = $('pamt');
+    var s = svc(), amt = $('pamt'), own = s.name === MARRIAGE || s.name === NADI;
     $('mar-note').style.display = s.name === MARRIAGE ? 'block' : 'none';
-    $('pay').style.display = s.name === MARRIAGE ? 'none' : '';
+    $('nadi-note').style.display = s.name === NADI ? 'block' : 'none';
+    $('pay').style.display = own ? 'none' : '';
     $('amt-wrap').style.display = s.free ? 'none' : '';
     amt.readOnly = !!s.fee;
     if (s.fee) { amt.value = s.fee; $('amt-note').textContent = 'Fixed fee for this service.'; }

@@ -33,14 +33,16 @@ button:hover{background:var(--orange-d)}
     <p class="sub">Sign in to manage enquiries, blogs and videos.</p>
     <label for="u">Username</label><input id="u" autocomplete="username" value="admin">
     <label for="p">Password</label><input id="p" type="password" autocomplete="current-password" autofocus>
+    <div id="codebox" hidden><label for="c">Authenticator code</label><input id="c" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="6 digits"></div>
     <button type="submit">Sign in</button>
-    <div id="err"></div>
+    <div id="err" role="alert"></div>
   </div>
 </form>
 <script>
+fetch('/admin/login-info').then(function (r) { return r.json(); }).then(function (d) { if (d.totp) document.getElementById('codebox').hidden = false; }).catch(function () {});
 document.getElementById('f').addEventListener('submit', function (e) {
   e.preventDefault();
-  fetch('/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) })
+  fetch('/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value, code: document.getElementById('c').value }) })
     .then(function (r) { return r.json(); })
     .then(function (d) { if (d.ok) location.href = '/admin/'; else document.getElementById('err').textContent = d.error || 'Login failed.'; })
     .catch(function () { document.getElementById('err').textContent = 'Network error.'; });

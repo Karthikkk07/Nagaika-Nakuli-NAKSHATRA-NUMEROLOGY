@@ -8,11 +8,14 @@ The app is one Node.js process (Node 22.13+; the Dockerfile uses Node 24) with a
 |---|---|
 | `ADMIN_PASSWORD` | **Required.** Password for `/admin`. Without it, the admin page is disabled. |
 | `ADMIN_USER` | Admin username (default `admin`) |
+| `ADMIN_TOTP_SECRET` | Optional two-factor secret (`node scripts/totp-secret.js`) |
 | `DATA_DIR` | Folder for `numerology.db`. Point it at the persistent disk (the Dockerfile uses `/data`) |
+| `SITE_URL` | Public address, used in `sitemap.xml` and `robots.txt` |
 | `PORT` | Usually set by the host |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `ADMIN_EMAIL` | Email notifications (optional) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`, `ADMIN_PHONE` | SMS notifications and OTP (optional) |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Real online payments (optional) |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_LANG`, `WHATSAPP_TEMPLATE_*` | WhatsApp messages for failed payments and refunds (optional) |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Real online payments (optional). Add the webhook `https://YOUR-SITE/api/payments/razorpay/webhook` in the Razorpay dashboard |
 | `DEMO_PAYMENTS` | Set to `true` on a prototype link: payment then runs in a labelled demo mode (no money moves) while the PDF and admin flow still work. Ignored once Razorpay keys are set. The Docker image runs in production mode, so without this (or Razorpay keys) the Pay step is disabled |
 | `PAYPAL_ME_LINK` | PayPal button (optional) |
 

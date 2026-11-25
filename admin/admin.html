@@ -90,7 +90,7 @@ td select,td input{width:100%;padding:6px 8px;border:1px solid #d9c690;border-ra
 </header>
 <main>
   <div class="stats" id="stats"></div>
-  <div class="tabs"><button class="on" data-t="orders">Paid orders</button><button data-t="enq">Enquiries</button><button data-t="chat">Chatbot leads</button><button data-t="pay">Payments</button><button data-t="blogs">Blogs</button><button data-t="vids">YouTube videos</button><button data-t="settings">Settings</button></div>
+  <div class="tabs"><button class="on" data-t="orders">Paid orders</button><button data-t="live">Live visitors</button><button data-t="enq">Enquiries</button><button data-t="chat">Chatbot leads</button><button data-t="pay">Payments</button><button data-t="blogs">Blogs</button><button data-t="vids">YouTube videos</button><button data-t="audit">Audit log</button><button data-t="settings">Settings</button></div>
   <div class="view" id="view"></div>
 </main>
 <script>
@@ -133,6 +133,7 @@ function orderCards() {
   return list.map(function (o) {
     var d = o.details || {}, r = o.result, wa = 'https://wa.me/' + String(o.phone).replace(/\D/g, '');
     var pay = o.pay_status === 'free' ? '<span class="badge free">free</span>' : (o.pay_mode === 'demo' ? '<span class="badge demo">demo payment</span>' : '<span class="badge paid">paid</span>');
+    if (o.refund_status === 'refunded') pay += ' <span class="badge demo">refunded &#8377;' + esc(o.refund_amount) + '</span>';
     var info = '';
     if (r && r.type === 'marriage') {
       var m = d.marriage || {};
@@ -160,7 +161,9 @@ function orderCards() {
       '<button class="btn sm blue" onclick="composing=\'' + o.id + '\';render()">Email</button></div>' + mail +
       '<div class="oacts"><select id="os' + o.id + '" style="width:auto;margin:0">' + ['new', 'contacted', 'done'].map(function (s) { return '<option' + (s === o.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select> ' +
       '<input id="on' + o.id + '" placeholder="notes" value="' + esc(o.notes) + '" style="flex:1;min-width:180px;padding:5px 8px;border:1px solid #d9c690;border-radius:6px"> ' +
-      '<button class="btn sm" onclick="saveO(\'' + o.id + '\')">Save</button> <button class="btn sm red" onclick="delO(\'' + o.id + '\')">Delete</button></div>' +
+      '<button class="btn sm" onclick="saveO(\'' + o.id + '\')">Save</button> ' +
+      (o.pay_status === 'paid' && o.refund_status !== 'refunded' ? '<button class="btn sm blue" onclick="refundO(\'' + o.id + '\',' + o.amount + ')">Refund</button> ' : '') +
+      '<button class="btn sm red" onclick="delO(\'' + o.id + '\')">Delete</button></div>' +
       (log ? '<div class="msglog">' + log + '</div>' : '') + '</div>';
   }).join('');
 }
@@ -212,6 +215,20 @@ function render() {
         return '<div class="vcard"><img src="https://img.youtube.com/vi/' + esc(v.youtube_id) + '/mqdefault.jpg" alt=""><b>' + esc(v.title || '(no title)') + '</b>' +
           '<div class="note">' + (v.kind === 'short' ? 'Short' : 'Video') + '</div><button class="btn sm red" onclick="delVideo(' + v.id + ')">Remove</button></div>';
       }).join('') + '</div>' : '<div class="empty">No videos added yet.</div>');
+  } else if (tab === 'audit') {
+    h = '<div id="audit"><div class="empty">Loading...</div></div>';
+    setTimeout(function () {
+      api('/admin/api/audit').then(function (rows) {
+        var el = document.getElementById('audit');
+        if (!el) return;
+        el.innerHTML = rows.length ? '<div class="wrap"><table class="stk"><tr><th>When</th><th>Action</th><th>Where</th><th>Details</th><th>From</th></tr>' + rows.map(function (a) {
+          return '<tr><td data-l="When">' + fmt(a.at) + '</td><td data-l="Action"><b>' + esc(a.action) + '</b></td><td data-l="Where">' + esc(a.target) + '</td><td data-l="Details">' + esc(a.detail) + '</td><td data-l="From">' + esc(a.ip) + '</td></tr>';
+        }).join('') + '</table></div>' : '<div class="empty">Nothing recorded yet.</div>';
+      });
+    }, 0);
+  } else if (tab === 'live') {
+    h = '<div id="live"><div class="empty">Loading live visitors...</div></div>';
+    setTimeout(refreshLive, 0);
   } else if (tab === 'settings') {
     var s = D.settings || {};
     h = '<div class="panel" style="max-width:640px"><b>Social media links</b><p class="note">These links are used in the website menu, footer and the Subscribe buttons. Use the full https:// link, or # to leave one blank.</p>' +
@@ -219,7 +236,22 @@ function render() {
       '<label>Instagram</label><input id="st-instagram" value="' + esc(s.instagram) + '">' +
       '<label>Facebook page</label><input id="st-facebook" value="' + esc(s.facebook) + '">' +
       '<label>LinkedIn</label><input id="st-linkedin" value="' + esc(s.linkedin) + '">' +
-      '<button class="btn" onclick="saveSettings()">Save links</button></div>';
+      '<button class="btn" onclick="saveSettings()">Save links</button></div>' +
+      '<div class="panel" style="max-width:640px;margin-top:14px"><b>Site switches</b><p class="note">Changes take effect within a few seconds.</p>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-orders" ' + (s.orders_on === 'off' ? '' : 'checked') + '> Accept online bookings and payments</label>' +
+      '<p class="note">Turn off to pause new orders (for example while changing prices or switching payment keys). Payments already in progress still complete.</p>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-maint" ' + (s.maintenance_mode === 'on' ? 'checked' : '') + '> Maintenance mode</label>' +
+      '<p class="note">Shows visitors a &ldquo;back soon&rdquo; page. This admin dashboard stays available to you.</p>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-online" ' + (s.show_online === 'on' ? 'checked' : '') + '> Show &ldquo;N online now&rdquo; in the website footer</label>' +
+      '<p class="note">Off by default. The live count is always visible to you in the Live visitors tab.</p>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-otp" ' + (s.otp_orders === 'on' ? 'checked' : '') + '> Require mobile OTP before an order</label>' +
+      '<p class="note">Customers must enter an SMS code before paying. Only takes effect once SMS (Twilio) is set up on the server; until then it is ignored so no one is locked out.</p>' +
+      '<button class="btn" onclick="saveSwitches()">Save switches</button></div>' +
+      '<div class="panel" style="max-width:640px;margin-top:14px"><b>Google Analytics (optional)</b><p class="note">Paste a GA4 measurement ID (G-XXXXXXXXXX). Visitors are asked first and tracking only starts if they accept. Leave blank to keep analytics off.</p>' +
+      '<input id="st-ga4" value="' + esc(s.ga4_id) + '" placeholder="G-XXXXXXXXXX"><button class="btn" onclick="saveAnalytics()">Save</button></div>' +
+      '<div class="panel" style="max-width:640px;margin-top:14px"><b>Data protection</b><p class="note">Erase one person\'s data on request (DPDP Act). Enquiries are deleted; orders are anonymised but the amount and payment reference stay for accounts.</p>' +
+      '<label>Mobile number</label><input id="er-phone"><label>Email</label><input id="er-email"><button class="btn red" onclick="eraseP()">Erase this person\'s data</button></div>' +
+      '<div class="panel" style="max-width:640px;margin-top:14px"><b>Backup</b><p class="note">Download a copy of the whole database. It contains customer data, so store it safely. Download one regularly if the host\'s disk is temporary.</p><a class="btn" href="/admin/backup.db">Download backup</a></div>';
   } else {
     h = D.chats.length ? '<div class="wrap"><table class="stk"><tr><th>Date</th><th>Challenge</th><th>Assistance</th><th>Service area</th></tr>' +
       D.chats.map(function (c) { return '<tr><td data-l="Date">' + fmt(c.created_at) + '</td><td data-l="Challenge">' + esc(c.topic) + '</td><td data-l="Assistance">' + esc(c.solution) + '</td><td data-l="Service area">' + esc(c.service) + '</td></tr>'; }).join('') + '</table></div>'
@@ -254,6 +286,47 @@ function delVideo(id) { if (confirm('Remove this video from the website? (It sta
 function saveSettings() {
   api('/admin/api/settings', 'POST', { youtube: val('st-youtube'), instagram: val('st-instagram'), facebook: val('st-facebook'), linkedin: val('st-linkedin') })
     .then(function (d) { if (!d.ok) return flash(d.error || 'Could not save.', true); load().then(function () { flash('Links saved.'); }); });
+}
+function refreshLive() {
+  var el = document.getElementById('live');
+  if (!el) return;
+  api('/admin/api/live').then(function (d) {
+    el = document.getElementById('live');
+    if (!el || tab !== 'live') return;
+    var card = function (label, n, note) { return '<div class="panel" style="flex:1;min-width:150px;text-align:center"><div style="font-size:2.2rem;font-weight:700;color:#7a1f0b">' + n + '</div><b>' + label + '</b>' + (note ? '<div class="note">' + note + '</div>' : '') + '</div>'; };
+    el.innerHTML = '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+      card('<span style="color:#1b7f43">&#9679;</span> Online now', d.online, 'active in the last 70 seconds') +
+      card('Visitors today', d.today.visitors, 'approximate, one per open tab') +
+      card('Page views today', d.today.views, '') +
+      card('Peak online today', d.today.peak, '') + '</div>' +
+      '<div class="panel" style="margin-top:12px"><b>Pages being viewed now</b>' + (d.pages.length ? '<table class="stk"><tr><th>Page</th><th>People</th></tr>' + d.pages.map(function (p) { return '<tr><td data-l="Page">' + esc(p.page) + '</td><td data-l="People">' + p.count + '</td></tr>'; }).join('') + '</table>' : '<p class="note">Nobody right now.</p>') + '</div>' +
+      '<div class="panel" style="margin-top:12px"><b>Last 14 days</b>' + (d.history.length ? '<table class="stk"><tr><th>Date</th><th>Visitors</th><th>Page views</th><th>Peak online</th></tr>' + d.history.map(function (r) { return '<tr><td data-l="Date">' + esc(r.day) + '</td><td data-l="Visitors">' + r.visitors + '</td><td data-l="Page views">' + r.views + '</td><td data-l="Peak online">' + r.peak + '</td></tr>'; }).join('') + '</table>' : '<p class="note">No history yet.</p>') +
+      '<p class="note">Counts reset if the server restarts during the day. Numbers refresh every 10 seconds.</p></div>';
+  }).catch(function () {});
+}
+setInterval(function () { if (tab === 'live') refreshLive(); }, 10000);
+function refundO(id, max) {
+  var v = prompt('Refund how many rupees? (up to ' + max + '). The customer is told by email/WhatsApp.', max);
+  if (v === null) return;
+  api('/admin/api/orders/' + id + '/refund', 'POST', { amount: Number(v) })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Refund failed.', true); load().then(function () { flash('Refund recorded.'); }); });
+}
+function eraseP() {
+  var ph = val('er-phone'), em = val('er-email');
+  if (!ph && !em) return flash('Enter a mobile number or email.', true);
+  if (!confirm('Erase all data held about this person? Enquiries are deleted and orders are anonymised. This cannot be undone.')) return;
+  api('/admin/api/erase', 'POST', { phone: ph, email: em })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not erase.', true); load().then(function () { flash('Erased ' + d.enquiries + ' enquiries and anonymised ' + d.orders + ' orders.'); }); });
+}
+function saveAnalytics() {
+  api('/admin/api/settings', 'POST', { ga4_id: val('st-ga4') })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not save.', true); load().then(function () { flash('Analytics ID saved.'); }); });
+}
+function saveSwitches() {
+  var maint = document.getElementById('sw-maint').checked;
+  if (maint && !confirm('Turn on maintenance mode? Visitors will see a "back soon" page until you turn it off.')) return;
+  api('/admin/api/settings', 'POST', { orders_on: document.getElementById('sw-orders').checked ? 'on' : 'off', maintenance_mode: maint ? 'on' : 'off', show_online: document.getElementById('sw-online').checked ? 'on' : 'off', otp_orders: document.getElementById('sw-otp').checked ? 'on' : 'off' })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not save.', true); load().then(function () { flash('Switches saved.'); }); });
 }
 function saveO(id) {
   api('/admin/api/orders/' + id, 'POST', { status: document.getElementById('os' + id).value, notes: document.getElementById('on' + id).value })

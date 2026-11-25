@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pricing Details | Nagaika, Nakuli Numerology</title>
+<meta name="description" content="Fees for numerology, Nakshatra, Nadi astrology, marriage compatibility and other consultations at Nagaika, Nakuli Numerology, Bengaluru.">
+<meta property="og:title" content="Pricing Details | Nagaika, Nakuli Numerology"><meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Pricing Details</h1></div></div>
+<section class="block">
+  <div class="wrap">
+    <p>Fees are in Indian rupees (INR) and include the consultation described. Where a service has no fixed fee, you enter the amount you agree with our numerologist when you pay. Payments are made online through a payment gateway and you receive a receipt.</p>
+    <table class="dt" id="price-table"><thead><tr><th>Service</th><th>Fee</th></tr></thead><tbody></tbody></table>
+    <p class="disclaimer" style="margin-top:14px">Services are guidance for reflection, not predictions or guarantees. See the <a href="refund-policy.html">Refund and Cancellation Policy</a> and the <a href="terms.html">Terms of Service</a>. Delivery: our numerologist contacts you on the mobile number you give, normally within 1 to 2 working days of payment.</p>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/services-data.js"></script>
+<script>
+(function () {
+  var tb = document.querySelector('#price-table tbody');
+  SERVICES.forEach(function (s) {
+    var tr = document.createElement('tr'), a = document.createElement('td'), b = document.createElement('td');
+    a.textContent = s.name;
+    b.textContent = s.free ? 'Free' : s.fee ? '\u20B9' + s.fee.toLocaleString('en-IN') : 'Amount agreed with our numerologist';
+    tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>

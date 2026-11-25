@@ -88,12 +88,43 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS daily_stats (
+    day TEXT PRIMARY KEY,
+    visitors INTEGER NOT NULL DEFAULT 0,
+    views INTEGER NOT NULL DEFAULT 0,
+    peak INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target TEXT,
+    detail TEXT,
+    ip TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log (at);
+  CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders (phone);
+  CREATE INDEX IF NOT EXISTS idx_orders_email ON orders (email);
+  CREATE INDEX IF NOT EXISTS idx_orders_rzp ON orders (rzp_order_id);
+  CREATE INDEX IF NOT EXISTS idx_enquiries_received ON enquiries (received_at);
   INSERT OR IGNORE INTO settings (key, value) VALUES
     ('youtube', 'https://www.youtube.com/'),
     ('instagram', '#'),
     ('facebook', '#'),
-    ('linkedin', '#');
+    ('linkedin', '#'),
+    ('maintenance_mode', 'off'),
+    ('orders_on', 'on'),
+    ('show_online', 'off'),
+    ('otp_orders', 'off'),
+    ('ga4_id', '');
 `);
+
+// Columns added after the first release
+const orderCols = db.prepare(`PRAGMA table_info(orders)`).all().map((c) => c.name);
+for (const [col, ddl] of [['refund_status', 'TEXT'], ['refund_id', 'TEXT'], ['refund_amount', 'INTEGER'], ['refunded_at', 'TEXT'], ['erased_at', 'TEXT']]) {
+  if (!orderCols.includes(col)) db.exec(`ALTER TABLE orders ADD COLUMN ${col} ${ddl}`);
+}
 
 const insertEnquiry = db.prepare(
   `INSERT INTO enquiries (id, received_at, name, email, phone, phone_verified, service, mode, dob, pref_date, message, source)
@@ -133,6 +164,13 @@ module.exports = {
   addVideo: (v) => db.prepare(`INSERT INTO videos (created_at, youtube_id, kind, title) VALUES (?, ?, ?, ?)`).run(new Date().toISOString(), v.youtubeId, v.kind, v.title),
   deleteVideo: (id) => db.prepare(`DELETE FROM videos WHERE id = ?`).run(id),
 
+  saveDailyStats: (s) =>
+    db.prepare(`INSERT INTO daily_stats (day, visitors, views, peak) VALUES (?, ?, ?, ?)
+      ON CONFLICT(day) DO UPDATE SET visitors = MAX(visitors, excluded.visitors), views = MAX(views, excluded.views), peak = MAX(peak, excluded.peak)`)
+      .run(s.day, s.visitors, s.views, s.peak),
+  getDailyStats: (day) => db.prepare(`SELECT * FROM daily_stats WHERE day = ?`).get(day),
+  listDailyStats: (n) => db.prepare(`SELECT * FROM daily_stats ORDER BY day DESC LIMIT ?`).all(n),
+
   getSettings: () => Object.fromEntries(db.prepare(`SELECT key, value FROM settings`).all().map((r) => [r.key, r.value])),
   setSetting: (key, value) => db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, value),
 
@@ -143,7 +181,31 @@ module.exports = {
   getOrderByRzp: (rzpOrderId) => db.prepare(`SELECT * FROM orders WHERE rzp_order_id = ?`).get(rzpOrderId),
   setOrderRzp: (id, rzpOrderId) => db.prepare(`UPDATE orders SET rzp_order_id = ? WHERE id = ?`).run(rzpOrderId, id),
   markOrderPaid: (id, mode, paymentId) =>
-    db.prepare(`UPDATE orders SET pay_status = 'paid', pay_mode = ?, payment_id = ?, paid_at = ? WHERE id = ? AND pay_status != 'paid'`).run(mode, paymentId, new Date().toISOString(), id),
+    Number(db.prepare(`UPDATE orders SET pay_status = 'paid', pay_mode = ?, payment_id = ?, paid_at = ? WHERE id = ? AND pay_status != 'paid'`).run(mode, paymentId, new Date().toISOString(), id).changes) > 0,
+  markOrderRefunded: (id, refundId, amount) =>
+    db.prepare(`UPDATE orders SET refund_status = 'refunded', refund_id = ?, refund_amount = ?, refunded_at = ? WHERE id = ?`).run(refundId, amount, new Date().toISOString(), id),
+  getOrderByPayment: (paymentId) => db.prepare(`SELECT * FROM orders WHERE payment_id = ?`).get(paymentId),
+  markPaymentStatus: (orderId, status) => db.prepare(`UPDATE payments SET status = ? WHERE order_id = ? AND status != 'paid'`).run(status, orderId),
+
+  addAudit: (a) =>
+    db.prepare(`INSERT INTO audit_log (at, actor, action, target, detail, ip) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(new Date().toISOString(), a.actor || 'admin', a.action, a.target || '', String(a.detail || '').slice(0, 500), a.ip || ''),
+  listAudit: (n) => db.prepare(`SELECT * FROM audit_log ORDER BY id DESC LIMIT ?`).all(n),
+
+  // DPDP "right to erasure": remove enquiries, anonymise orders (paid ones keep amount and payment reference for accounts)
+  erasePerson: ({ phone, email }) => {
+    const ph = phone || '__none__', em = (email || '__none__').toLowerCase();
+    const enq = db.prepare(`DELETE FROM enquiries WHERE phone = ? OR LOWER(email) = ?`).run(ph, em).changes;
+    const rows = db.prepare(`SELECT id, rzp_order_id FROM orders WHERE phone = ? OR LOWER(email) = ?`).all(ph, em);
+    const ids = rows.map((r) => r.id);
+    for (const r of rows) {
+      db.prepare(`DELETE FROM order_messages WHERE order_id = ?`).run(r.id);
+      if (r.rzp_order_id) db.prepare(`UPDATE payments SET name = 'Erased' WHERE order_id = ?`).run(r.rzp_order_id);
+      db.prepare(`UPDATE orders SET name = 'Erased', email = 'erased@invalid', phone = 'erased', details = '{}', result = NULL, notes = NULL, erased_at = ? WHERE id = ?`).run(new Date().toISOString(), r.id);
+    }
+    return { enquiries: Number(enq), orders: ids.length };
+  },
+  backupTo: (file) => db.exec(`VACUUM INTO '${String(file).replace(/'/g, "''")}'`),
   listOrders: () => db.prepare(`SELECT * FROM orders WHERE pay_status IN ('paid', 'free') ORDER BY COALESCE(paid_at, created_at) DESC LIMIT 1000`).all(),
   updateOrder: (id, status, notes) => db.prepare(`UPDATE orders SET status = ?, notes = ? WHERE id = ?`).run(status, notes, id),
   deleteOrder: (id) => { db.prepare(`DELETE FROM order_messages WHERE order_id = ?`).run(id); return db.prepare(`DELETE FROM orders WHERE id = ?`).run(id); },

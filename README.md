@@ -23,6 +23,18 @@ A numerology and Nakshatra website for a consultancy in Bengaluru: yellow top ba
 
 Services, enquiry form with optional OTP, guided chatbot, WhatsApp button, Razorpay and PayPal payment page, blog, gallery, YouTube videos, and the `/admin` dashboard (enquiries, blogs, videos, settings, payments, chatbot leads, CSV export).
 
+## Added in the latest release
+
+- **Hora Kala Chakram** (`hora.html`): daily planetary hora timings for 11 cities, your location or any latitude and longitude. Works out sunrise and sunset in the browser and highlights the hora running now.
+- **Legal and trust pages:** Privacy (DPDP Act), Terms, Refund and Cancellation, Disclaimer, Cookie Policy, Pricing and FAQ, linked in the footer. They need the owner's approval and a lawyer's review.
+- **SEO:** meta description and share tags on every page, `robots.txt`, an automatic `sitemap.xml` (set `SITE_URL` for a custom domain), skip link and visible focus states.
+- **Live visitors** in the admin (online now, today, peak, pages, 14-day history). Anonymous: a random per-tab id, no IP address stored. Optional "N online now" footer badge.
+- **Admin controls:** maintenance mode, pause bookings, require OTP on orders, Google Analytics ID (loads only after the visitor accepts), audit log, refunds (full or partial), data erasure on request, database backup download, optional two-factor login (TOTP) and sign-in lockout.
+- **Payments:** Razorpay webhook (signed, idempotent, amount-checked) so payments are recorded even if the browser is closed; failed payments and refunds notify the customer by email and WhatsApp (when set up).
+- **Operations:** gzip, cache headers, security headers, daily database backup, graceful shutdown, `npm test` (unit and API tests) and a GitHub Actions workflow.
+
+See [docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md), [docs/API.md](docs/API.md) and [docs/GO-LIVE.md](docs/GO-LIVE.md). Run the tests with `npm test`.
+
 ## Admin dashboard
 
 Open `/admin` and sign in with `ADMIN_USER` and `ADMIN_PASSWORD` from `.env`. It has the same yellow and orange look as the site and works on phones. Tabs: enquiries (search, status filter, notes, CSV export), chatbot leads, payments, blogs, YouTube videos and social-link settings.

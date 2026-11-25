@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hora Kala Chakram - Daily Hora Timings | Nagaika, Nakuli Numerology</title>
+<meta name="description" content="Daily Hora Kala Chakram timings for your city. See the planetary hora running now, with start and end times for the day and night horas.">
+<meta property="og:title" content="Hora Kala Chakram | Nagaika, Nakuli Numerology"><meta property="og:description" content="Daily planetary hora timings for your city."><meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Hora Kala Chakram &middot; హోర కాలచక్రం</h1></div></div>
+<section class="block">
+  <div class="wrap">
+    <p>In Vedic timekeeping each day is split into 24 <b>horas</b>: 12 between sunrise and sunset and 12 between sunset and the next sunrise. Each hora is ruled by a planet, and the first hora of the day belongs to the planet of that weekday. Because sunrise and sunset change with the place and the season, the timings below are worked out for your city.</p>
+    <div class="card" style="margin:14px 0">
+      <div class="row">
+        <div class="field"><label for="h-city">City</label><select id="h-city"></select></div>
+        <div class="field"><label for="h-date">Date</label><input id="h-date" type="date"></div>
+      </div>
+      <div class="row" id="h-custom" hidden>
+        <div class="field"><label for="h-lat">Latitude</label><input id="h-lat" type="number" step="0.0001" placeholder="e.g. 12.9716"></div>
+        <div class="field"><label for="h-lon">Longitude</label><input id="h-lon" type="number" step="0.0001" placeholder="e.g. 77.5946"></div>
+        <div class="field"><label>&nbsp;</label><button type="button" class="btn sm" id="h-apply">Apply</button></div>
+      </div>
+      <div class="hora-bar">
+        <button type="button" class="btn sm alt" id="h-prev">&larr; Previous day</button>
+        <button type="button" class="btn sm" id="h-today">Today</button>
+        <button type="button" class="btn sm alt" id="h-next">Next day &rarr;</button>
+        <button type="button" class="btn sm yellow" id="h-geo">Use my location</button>
+      </div>
+    </div>
+    <div id="hora-out" aria-live="polite"></div>
+    <p class="disclaimer" style="margin-top:14px">Hora timings are calculated from the sunrise and sunset of the chosen place and may differ by a minute or two from a printed almanac (panchangam). They are traditional guidance for reflection, not a prediction or a guarantee. Green rows are the benefic planets (Moon, Mercury, Jupiter, Venus). The &ldquo;day&rdquo; here runs from sunrise to the next sunrise.</p>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/hora.js"></script>
+</body>
+</html>

@@ -1,28 +1,111 @@
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const crypto = require('crypto');
 const express = require('express');
+const compression = require('compression');
 const nodemailer = require('nodemailer');
 const store = require('./db');
 const engine = require('./lib/engine');
 const { buildOrderPdf } = require('./lib/pdf');
+const presence = require('./lib/presence');
+const totp = require('./lib/totp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1); // behind the host's reverse proxy, so req.ip is the real client
+app.use(compression());
 app.use((req, res, next) => {
-  res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+    'Content-Security-Policy': "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'",
+  });
+  if (process.env.NODE_ENV === 'production') res.set('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
   next();
 });
-app.get('/healthz', (req, res) => res.json({ ok: true }));
+app.get('/healthz', (req, res) => {
+  try {
+    store.db.prepare('SELECT 1').get();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(503).json({ ok: false });
+  }
+});
+
+// Admin-controlled switches (Settings tab), cached for a few seconds
+let settingsCache = { at: 0, s: {} };
+const liveSettings = () => {
+  if (Date.now() - settingsCache.at > 3000) settingsCache = { at: Date.now(), s: store.getSettings() };
+  return settingsCache.s;
+};
+const flagOn = (key, def) => (liveSettings()[key] || def) === 'on';
+
+app.use((req, res, next) => {
+  if (!flagOn('maintenance_mode', 'off')) return next();
+  if (req.path.startsWith('/admin') || req.path === '/healthz' || req.path === '/api/settings' || req.path === '/api/payments/razorpay/webhook' || req.path.startsWith('/img/')) return next();
+  res.set('Retry-After', '600');
+  if (req.path.startsWith('/api/')) return res.status(503).json({ ok: false, error: 'The site is under maintenance. Please try again shortly.' });
+  res.status(503).sendFile(path.join(__dirname, 'public', 'maintenance.html'));
+});
+const ordersGate = (req, res, next) =>
+  flagOn('orders_on', 'on') ? next() : res.status(503).json({ ok: false, error: 'Online booking is paused for now. Please call or WhatsApp us on 9845610894.' });
+app.post(['/api/orders', '/api/orders/:id/pay', '/api/orders/:id/demo-pay'], ordersGate);
+
+// ---------- live visitors ----------
+const todayIn = presence.totals().day;
+presence.seed(store.getDailyStats(todayIn));
+setInterval(() => { try { store.saveDailyStats(presence.totals()); } catch (e) { console.error(e); } }, 60 * 1000).unref();
+app.post('/api/presence', rateLimit(120, 60 * 1000), express.json({ limit: '2kb' }), (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || '');
+  if (/^[A-Za-z0-9_-]{8,40}$/.test(id)) {
+    const page = String(b.page || '/').replace(/[?#].*$/, '').slice(0, 80) || '/';
+    presence.ping(id, page, b.view === true);
+  }
+  res.status(204).end();
+});
+app.get('/api/online', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=10');
+  if (!flagOn('show_online', 'off')) return res.json({ show: false });
+  res.json({ show: true, online: presence.online() });
+});
+
+// Razorpay webhook: needs the raw body to check the signature, so it is registered before the JSON parser.
+// It makes payment status independent of the browser: a customer who closes the tab after paying is still recorded.
+app.post('/api/payments/razorpay/webhook', express.raw({ type: '*/*', limit: '200kb' }), async (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const sig = String(req.get('x-razorpay-signature') || '');
+  if (!secret || !Buffer.isBuffer(req.body) || !sig) return res.status(400).json({ ok: false });
+  const expected = crypto.createHmac('sha256', secret).update(req.body).digest('hex');
+  if (expected.length !== sig.length || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return res.status(400).json({ ok: false });
+  let evt;
+  try { evt = JSON.parse(req.body.toString('utf8')); } catch (e) { return res.status(400).json({ ok: false }); }
+  try {
+    await handleRazorpayEvent(evt);
+  } catch (e) {
+    console.error('Webhook handling failed', e);
+    return res.status(500).json({ ok: false }); // Razorpay retries on non-2xx
+  }
+  res.json({ ok: true });
+});
+
 // Nadi Astrology orders carry a small fingerprint image, so only order creation gets a larger body limit
 const bigJson = express.json({ limit: '1mb' });
 app.use((req, res, next) => (req.method === 'POST' && req.path === '/api/orders' ? bigJson(req, res, next) : next()));
 app.use(express.json({ limit: '200kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, file) => {
+    if (/\.html$/i.test(file)) res.set('Cache-Control', 'no-cache');
+    else if (/[\\/](img|downloads)[\\/]/.test(file)) res.set('Cache-Control', 'public, max-age=604800');
+    else res.set('Cache-Control', 'public, max-age=300');
+  },
+}));
 
 // ---------- helpers ----------
 const esc = (s) =>
@@ -40,6 +123,11 @@ function rateLimit(max, windowMs) {
     next();
   };
 }
+// forget old rate-limit records so memory does not grow with every visitor
+setInterval(() => {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  for (const [k, v] of hits) if (!v.length || v[v.length - 1] < cutoff) hits.delete(k);
+}, 10 * 60 * 1000).unref();
 
 const normPhone = (p) => {
   const d = String(p || '').replace(/\D/g, '');
@@ -85,22 +173,106 @@ async function sendSms(to, body) {
   return true;
 }
 
+// WhatsApp Business Cloud API (Meta). Needs an approved message template; unset means "not configured".
+const WA_ON = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+async function sendWhatsAppTemplate(to, template, params) {
+  if (!WA_ON || !to) return false;
+  const r = await fetch(`https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + process.env.WHATSAPP_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: String(to).replace(/\D/g, ''),
+      type: 'template',
+      template: { name: template, language: { code: process.env.WHATSAPP_LANG || 'en' }, components: [{ type: 'body', parameters: params.map((t) => ({ type: 'text', text: String(t).slice(0, 200) })) }] },
+    }),
+  });
+  if (!r.ok) throw new Error('WhatsApp provider error ' + r.status);
+  return true;
+}
+
+const SITE_NAME = 'Nagaika, Nakuli Numerology';
+const CONTACT_LINE = 'call or WhatsApp us on 9845610894';
+
+// Tell the customer about a payment problem or refund by WhatsApp (if set up) and email, and keep a record on the order
+async function notifyCustomer(order, kind, extra = {}) {
+  const msgs = {
+    payment_failed: {
+      template: process.env.WHATSAPP_TEMPLATE_PAYMENT_FAILED || 'payment_failed',
+      params: [order.name, order.service],
+      subject: `Your payment for ${order.service} did not go through`,
+      body: `Dear ${order.name}, your payment for ${order.service} did not go through. If any money was deducted, your bank usually returns it within 5 to 7 working days. You can try again on our website, or ${CONTACT_LINE}.`,
+    },
+    refund: {
+      template: process.env.WHATSAPP_TEMPLATE_REFUND || 'refund_processed',
+      params: [order.name, `Rs ${extra.amount}`, order.service],
+      subject: `Refund for ${order.service}`,
+      body: `Dear ${order.name}, we have refunded Rs ${extra.amount} for ${order.service}. It normally reaches you in 5 to 7 working days, depending on your bank. For questions, ${CONTACT_LINE}.`,
+    },
+  }[kind];
+  if (!msgs) return;
+  const jobs = [];
+  if (WA_ON) jobs.push(sendWhatsAppTemplate(order.phone, msgs.template, msgs.params).then(() => store.addOrderMessage({ orderId: order.id, channel: 'whatsapp', subject: msgs.subject, body: msgs.body, sent: true })));
+  if (mailer && order.email && /@/.test(order.email) && !/invalid$/.test(order.email)) {
+    jobs.push(sendMailTo(order.email, `${msgs.subject} | ${SITE_NAME}`, `<p>${esc(msgs.body)}</p><p>${SITE_NAME}, Bengaluru</p>`, msgs.body).then(() => store.addOrderMessage({ orderId: order.id, channel: 'email', subject: msgs.subject, body: msgs.body, sent: true })));
+  }
+  (await Promise.allSettled(jobs)).forEach((r) => r.status === 'rejected' && console.error('Customer notification failed:', r.reason));
+}
+
+// Razorpay events: status changes arrive here even if the customer closed the browser after paying
+async function handleRazorpayEvent(evt) {
+  const ent = (k) => evt.payload && evt.payload[k] && evt.payload[k].entity;
+  if (evt.event === 'payment.captured' || evt.event === 'order.paid') {
+    const pay = ent('payment');
+    if (!pay) return;
+    const order = store.getOrderByRzp(pay.order_id);
+    if (!order) return console.warn('Webhook for unknown Razorpay order', pay.order_id);
+    if (Number(pay.amount) !== order.amount * 100) return console.error(`Webhook amount mismatch for order ${order.id}: got ${pay.amount}, expected ${order.amount * 100}`);
+    store.markPaymentPaid(pay.order_id, pay.id);
+    if (store.markOrderPaid(order.id, 'razorpay', pay.id)) await finalizeOrder(order.id).catch((e) => console.error('Order finalize failed', e));
+  } else if (evt.event === 'payment.failed') {
+    const pay = ent('payment');
+    const order = pay && store.getOrderByRzp(pay.order_id);
+    if (!order || order.pay_status === 'paid') return;
+    store.markPaymentStatus(pay.order_id, 'failed');
+    const reason = (pay.error_description || pay.error_reason || 'unknown reason').toString().slice(0, 120);
+    await Promise.allSettled([
+      notifyCustomer(order, 'payment_failed'),
+      sendEmail(`Payment failed: ${order.service} - ${order.name}`, `<p>Payment failed for <b>${esc(order.service)}</b> (${esc(order.name)}, ${esc(order.phone)}). Reason: ${esc(reason)}</p>`, `Payment failed: ${order.service}, ${order.name}, ${order.phone}. Reason: ${reason}`),
+      sendSms(process.env.ADMIN_PHONE, `Payment failed: ${order.service}, ${order.name}, ${order.phone}`),
+    ]);
+  } else if (evt.event === 'refund.processed') {
+    const rf = ent('refund');
+    const order = rf && store.getOrderByPayment(rf.payment_id);
+    if (order && order.refund_status !== 'refunded') store.markOrderRefunded(order.id, rf.id, Math.round(rf.amount / 100));
+  }
+}
+
 // ---------- config for the front-end ----------
 // Without Razorpay keys payments run in a clearly labelled demo mode so the whole flow can be shown.
 // Outside production it is on by default; in production set DEMO_PAYMENTS=true to keep it (e.g. for a prototype link).
 const RZP_ON = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 const DEMO_PAY = !RZP_ON && (process.env.DEMO_PAYMENTS === 'true' || process.env.NODE_ENV !== 'production');
 
+const SMS_ON = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM);
+// OTP on order forms is enforced only when the admin switch is on AND SMS is actually set up, so a missing provider cannot lock customers out
+const otpRequired = () => flagOn('otp_orders', 'off') && SMS_ON;
+
 app.get('/api/config', (req, res) => {
   res.json({
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || null,
     paypalLink: process.env.PAYPAL_ME_LINK || null,
     demoPayments: DEMO_PAY,
+    otpRequired: otpRequired(),
   });
 });
 
 // ---------- OTP (optional phone verification) ----------
 const otps = new Map(); // phone -> { code, expires, verifiedUntil }
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of otps) if (Math.max(v.expires || 0, v.tokenExpires || 0) < now) otps.delete(k);
+}, 5 * 60 * 1000).unref();
 
 app.post('/api/otp/send', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
   const phone = normPhone(req.body.phone);
@@ -340,6 +512,12 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
     if (name.length < 2) throw new BadInput('Please enter your name.');
     if (!phone) throw new BadInput('Please enter a valid mobile number.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new BadInput('Please enter a valid email address.');
+    if (otpRequired()) {
+      const rec = otps.get(phone);
+      if (!(b.otpToken && rec && rec.token === b.otpToken && rec.tokenExpires > Date.now())) {
+        return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
+      }
+    }
 
     let amount = 0;
     if (svc.fee) amount = svc.fee;
@@ -408,8 +586,9 @@ app.post('/api/orders/:id/demo-pay', ORDER_RATE, async (req, res) => {
   if (!DEMO_PAY) return res.status(403).json({ ok: false, error: 'Demo payments are switched off.' });
   const o = store.getOrder(req.params.id);
   if (!o || o.pay_status !== 'pending') return res.status(409).json({ ok: false, error: 'This order cannot be paid.' });
-  store.markOrderPaid(o.id, 'demo', 'DEMO-' + crypto.randomBytes(4).toString('hex').toUpperCase());
-  await finalizeOrder(o.id).catch((e) => console.error('Order finalize failed', e));
+  if (store.markOrderPaid(o.id, 'demo', 'DEMO-' + crypto.randomBytes(4).toString('hex').toUpperCase())) {
+    await finalizeOrder(o.id).catch((e) => console.error('Order finalize failed', e));
+  }
   res.json({ ok: true, order: publicOrder(store.getOrder(o.id)) });
 });
 
@@ -423,8 +602,7 @@ app.post('/api/payments/razorpay/verify', async (req, res) => {
   store.markPaymentPaid(o, p);
   const order = store.getOrderByRzp(o);
   if (order) {
-    store.markOrderPaid(order.id, 'razorpay', p);
-    await finalizeOrder(order.id).catch((e) => console.error('Order finalize failed', e));
+    if (store.markOrderPaid(order.id, 'razorpay', p)) await finalizeOrder(order.id).catch((e) => console.error('Order finalize failed', e));
   }
   res.json({ ok: true, order: order ? publicOrder(store.getOrder(order.id)) : null });
 });
@@ -455,6 +633,7 @@ app.post('/api/chat-lead', rateLimit(30, 10 * 60 * 1000), (req, res) => {
 // ---------- admin (login page + signed session cookie) ----------
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const SESSION_MS = 8 * 60 * 60 * 1000;
+const TOTP_SECRET = process.env.ADMIN_TOTP_SECRET || '';
 const sign = (v) => crypto.createHmac('sha256', sha('admin-session:' + (process.env.ADMIN_PASSWORD || ''))).update(v).digest('hex');
 const credsOk = (user, pass) =>
   !!process.env.ADMIN_PASSWORD &&
@@ -468,6 +647,7 @@ function hasSession(req) {
   return !!sig && Number(exp) > Date.now() && sig.length === 64 && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(sign(exp)));
 }
 function hasBasic(req) {
+  if (TOTP_SECRET) return false; // with two-factor on, only the login page (password + code) is accepted
   const [scheme, encoded] = (req.headers.authorization || '').split(' ');
   if (scheme !== 'Basic') return false;
   const [user, ...rest] = Buffer.from(encoded || '', 'base64').toString().split(':');
@@ -479,11 +659,31 @@ function adminAuth(req, res, next) {
   if (req.method === 'GET' && !req.path.startsWith('/api/') && req.path !== '/export.csv') return res.redirect('/admin/login');
   res.status(401).json({ ok: false, error: 'Please sign in.' });
 }
+const audit = (req, action, target, detail) => {
+  try { store.addAudit({ action, target, detail, ip: req.ip }); } catch (e) { console.error('Audit failed', e); }
+};
+
+// Lock an address out for 15 minutes after 5 wrong sign-ins
+const loginFails = new Map();
+const LOCK_AFTER = 5, LOCK_MS = 15 * 60 * 1000;
+
 const adminRouter = express.Router();
 adminRouter.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'admin', 'login.html')));
-adminRouter.post('/login', rateLimit(10, 10 * 60 * 1000), (req, res) => {
-  const { username, password } = req.body || {};
-  if (!credsOk(String(username || ''), String(password || ''))) return res.status(401).json({ ok: false, error: 'Wrong username or password.' });
+adminRouter.get('/login-info', (req, res) => res.json({ totp: !!TOTP_SECRET }));
+adminRouter.post('/login', rateLimit(30, 10 * 60 * 1000), (req, res) => {
+  const rec = loginFails.get(req.ip) || { n: 0, until: 0 };
+  if (rec.until > Date.now()) return res.status(429).json({ ok: false, error: 'Too many wrong attempts. Please try again in 15 minutes.' });
+  const { username, password, code } = req.body || {};
+  const good = credsOk(String(username || ''), String(password || '')) && (!TOTP_SECRET || totp.verify(TOTP_SECRET, code));
+  if (!good) {
+    rec.n++;
+    if (rec.n >= LOCK_AFTER) { rec.until = Date.now() + LOCK_MS; rec.n = 0; }
+    loginFails.set(req.ip, rec);
+    audit(req, 'login_failed', String(username || '').slice(0, 40));
+    return res.status(401).json({ ok: false, error: TOTP_SECRET ? 'Wrong username, password or code.' : 'Wrong username or password.' });
+  }
+  loginFails.delete(req.ip);
+  audit(req, 'login', String(username).slice(0, 40));
   const exp = String(Date.now() + SESSION_MS);
   const flags = `HttpOnly; SameSite=Strict; Path=/admin; Max-Age=${SESSION_MS / 1000}` + (req.secure ? '; Secure' : '');
   res.set('Set-Cookie', `admin_session=${encodeURIComponent(exp + '.' + sign(exp))}; ${flags}`).json({ ok: true });
@@ -492,6 +692,11 @@ adminRouter.post('/logout', (req, res) => {
   res.set('Set-Cookie', 'admin_session=; HttpOnly; SameSite=Strict; Path=/admin; Max-Age=0').json({ ok: true });
 });
 adminRouter.use(adminAuth);
+// every change made in the admin area is recorded (what, where from; never the customer's data)
+adminRouter.use((req, res, next) => {
+  if (req.method !== 'GET') res.on('finish', () => { if (res.statusCode < 400) audit(req, req.method, req.path.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, ':id').slice(0, 120)); });
+  next();
+});
 adminRouter.get('/', (req, res) => res.sendFile(path.join(__dirname, 'admin', 'admin.html')));
 adminRouter.get('/api/data', (req, res) => {
   const msgs = store.listOrderMessages();
@@ -522,6 +727,62 @@ adminRouter.post('/api/orders/:id', (req, res) => {
 adminRouter.delete('/api/orders/:id', (req, res) => {
   store.deleteOrder(req.params.id);
   res.json({ ok: true });
+});
+
+// Refund a paid order in full or in part. Razorpay orders call the Razorpay refund API; demo orders are only marked.
+adminRouter.post('/api/orders/:id/refund', async (req, res) => {
+  const o = store.getOrder(req.params.id);
+  if (!o || o.pay_status !== 'paid') return res.status(404).json({ ok: false, error: 'Only paid orders can be refunded.' });
+  if (o.refund_status === 'refunded') return res.status(409).json({ ok: false, error: 'This order has already been refunded.' });
+  const amount = req.body && req.body.amount ? Math.round(Number(req.body.amount)) : o.amount;
+  if (!Number.isFinite(amount) || amount < 1 || amount > o.amount) return res.status(400).json({ ok: false, error: `Enter an amount between Rs 1 and Rs ${o.amount}.` });
+  let refundId;
+  if (o.pay_mode === 'razorpay') {
+    if (!RZP_ON) return res.status(503).json({ ok: false, error: 'Razorpay keys are not set on the server.' });
+    try {
+      const r = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(o.payment_id)}/refund`, {
+        method: 'POST',
+        headers: { Authorization: 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amount * 100, speed: 'normal', receipt: 'ref_' + o.id.slice(0, 8), notes: { order: o.id } }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(JSON.stringify(data));
+      refundId = data.id;
+    } catch (e) {
+      console.error('Refund failed', e);
+      return res.status(502).json({ ok: false, error: 'Razorpay could not process the refund. Check the Razorpay dashboard.' });
+    }
+  } else {
+    refundId = 'DEMO-REFUND-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+  }
+  store.markOrderRefunded(o.id, refundId, amount);
+  audit(req, 'refund', o.id.slice(0, 8), `Rs ${amount} (${o.pay_mode})`);
+  notifyCustomer(o, 'refund', { amount }).catch(() => {});
+  res.json({ ok: true, refundId });
+});
+
+// Data protection: erase everything held about one person (by mobile number and/or email)
+adminRouter.post('/api/erase', (req, res) => {
+  const phone = normPhone(String((req.body || {}).phone || ''));
+  const email = String((req.body || {}).email || '').trim().toLowerCase();
+  if (!phone && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ ok: false, error: 'Enter a mobile number or an email address.' });
+  const r = store.erasePerson({ phone, email });
+  audit(req, 'erase_person', `${r.enquiries} enquiries, ${r.orders} orders`);
+  res.json({ ok: true, ...r });
+});
+adminRouter.get('/api/audit', (req, res) => res.json(store.listAudit(300)));
+
+// Download a copy of the whole database (contains personal data: keep it private)
+adminRouter.get('/backup.db', (req, res) => {
+  const file = path.join(os.tmpdir(), `backup-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.db`);
+  try {
+    store.backupTo(file);
+  } catch (e) {
+    console.error('Backup failed', e);
+    return res.status(500).send('Backup failed.');
+  }
+  audit(req, 'download_backup', '');
+  res.download(file, `numerology-backup-${new Date().toISOString().slice(0, 10)}.db`, () => fs.unlink(file, () => {}));
 });
 // Reply to the customer by email, optionally with the order PDF attached
 adminRouter.post('/api/orders/:id/email', async (req, res) => {
@@ -603,8 +864,14 @@ adminRouter.delete('/api/video/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// site settings (social links)
+// site settings (social links and switches)
 const SETTING_KEYS = ['youtube', 'instagram', 'linkedin', 'facebook'];
+const TOGGLE_KEYS = ['maintenance_mode', 'orders_on', 'show_online', 'otp_orders'];
+adminRouter.get('/api/live', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  store.saveDailyStats(presence.totals());
+  res.json({ ...presence.snapshot(), history: store.listDailyStats(14) });
+});
 adminRouter.post('/api/settings', (req, res) => {
   for (const k of SETTING_KEYS) {
     if (req.body && k in req.body) {
@@ -613,6 +880,15 @@ adminRouter.post('/api/settings', (req, res) => {
       store.setSetting(k, v);
     }
   }
+  for (const k of TOGGLE_KEYS) {
+    if (req.body && k in req.body) store.setSetting(k, req.body[k] === 'on' ? 'on' : 'off');
+  }
+  if (req.body && 'ga4_id' in req.body) {
+    const g = String(req.body.ga4_id || '').trim().toUpperCase();
+    if (g && !/^G-[A-Z0-9]{6,12}$/.test(g)) return res.status(400).json({ ok: false, error: 'Analytics ID must look like G-XXXXXXXXXX.' });
+    store.setSetting('ga4_id', g);
+  }
+  settingsCache.at = 0;
   res.json({ ok: true, settings: store.getSettings() });
 });
 app.use('/admin', adminRouter);
@@ -623,6 +899,7 @@ function parseYouTubeId(url) {
   return m ? m[1] : null;
 }
 app.get('/api/settings', (req, res) => res.json(store.getSettings()));
+const siteUrl = (req) => (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
 app.get('/api/videos', (req, res) => res.json(store.listVideos()));
 app.get('/api/blogs', (req, res) => res.json(store.listBlogs(true)));
 app.get('/api/blogs/:id', (req, res) => {
@@ -631,12 +908,64 @@ app.get('/api/blogs/:id', (req, res) => {
   res.json(b);
 });
 
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /\n\nSitemap: ${siteUrl(req)}/sitemap.xml\n`);
+});
+app.get('/sitemap.xml', (req, res) => {
+  const base = siteUrl(req);
+  const pages = ['', 'about.html', 'services.html', 'nakshatra.html', 'tools.html', 'hora.html', 'marriage.html', 'nadi.html', 'blog.html', 'videos.html', 'gallery.html', 'why-choose-us.html', 'faq.html', 'pricing.html', 'contact.html', 'payment.html', 'privacy.html', 'terms.html', 'refund-policy.html', 'disclaimer.html', 'cookies.html'];
+  const urls = pages.map((p) => ({ loc: `${base}/${p}` }));
+  for (const b of store.listBlogs(true)) urls.push({ loc: `${base}/blog-post.html?id=${b.id}`, lastmod: String(b.created_at).slice(0, 10) });
+  res.type('application/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      urls.map((u) => `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}</url>`).join('\n') +
+      '\n</urlset>\n'
+  );
+});
+
 app.use((req, res) => res.status(404).sendFile(path.join(__dirname, 'public', '404.html')));
 
-app.listen(PORT, (err) => {
+app.use((err, req, res, next) => {
+  const status = err.status >= 400 && err.status < 500 ? err.status : 500;
+  if (status === 500) console.error(err);
+  if (req.path.startsWith('/api/') || req.path.startsWith('/admin/api/')) {
+    return res.status(status).json({ ok: false, error: status === 500 ? 'Something went wrong. Please try again.' : 'Invalid request.' });
+  }
+  res.status(status).sendFile(path.join(__dirname, 'public', status === 500 ? '500.html' : '404.html'));
+});
+
+// Local daily backup, kept for 7 days. On hosts with a temporary disk also download copies from the admin Settings tab.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+function dailyBackup() {
+  try {
+    const dir = path.join(DATA_DIR, 'backups');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `numerology-${new Date().toISOString().slice(0, 10)}.db`);
+    if (!fs.existsSync(file)) store.backupTo(file);
+    const old = fs.readdirSync(dir).filter((f) => /^numerology-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().slice(0, -7);
+    old.forEach((f) => fs.unlinkSync(path.join(dir, f)));
+  } catch (e) {
+    console.error('Daily backup failed', e);
+  }
+}
+dailyBackup();
+setInterval(dailyBackup, 6 * 60 * 60 * 1000).unref();
+
+const server = app.listen(PORT, (err) => {
   if (err) {
     console.error(err.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Stop the other server or set a different PORT.` : err);
     process.exit(1);
   }
   console.log(`Site running at http://localhost:${PORT}`);
 });
+
+// Finish in-flight requests before the host replaces this instance (zero-downtime deploys)
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    try { store.saveDailyStats(presence.totals()); } catch (e) {}
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 10000).unref();
+  });
+}
+
+module.exports = app;

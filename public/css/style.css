@@ -349,6 +349,42 @@ footer.site .disc { padding:10px 18px 16px; color:var(--muted); font-size:.8rem;
 .mm-fee b { font-size:1.4rem; color:var(--orange-d); }
 @media (max-width:700px) { .mm-cols { grid-template-columns:1fr; } }
 
+/* Legal pages and cookie notice */
+.skip-link { position:absolute; left:-9999px; top:0; background:#fff; color:#7a1f0b; padding:8px 14px; z-index:2000; font-weight:700; }
+.skip-link:focus { left:8px; top:8px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline:3px solid #1a5fb4; outline-offset:2px; }
+#otp-modal { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:3000; display:flex; align-items:center; justify-content:center; padding:16px; }
+#otp-modal .otp-box { background:#fff; border-radius:8px; padding:22px; max-width:360px; width:100%; }
+#otp-modal h3 { margin:0 0 8px; color:var(--maroon); }
+#otp-modal input { width:100%; font-size:1.4rem; letter-spacing:.3em; text-align:center; padding:8px; border:1px solid var(--line); border-radius:6px; margin:8px 0; }
+#otp-modal .otp-err { color:var(--err); min-height:1.2em; margin-bottom:8px; }
+.legal { max-width:820px; }
+.legal h2 { color:var(--maroon); font-size:1.15rem; margin:22px 0 6px; }
+.legal li { margin:4px 0; }
+details.faq { background:#fff; border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin:10px 0; }
+details.faq summary { cursor:pointer; font-weight:600; color:var(--maroon); }
+footer.site .legal-links { margin-top:6px; font-size:.85rem; }
+.online-now { margin:10px 0 0; font-weight:600; }
+.online-now i { display:inline-block; width:9px; height:9px; border-radius:50%; background:#1fb25a; margin-right:4px; }
+#cookie-note { position:fixed; left:12px; bottom:12px; max-width:420px; z-index:900; background:#fff; border:1px solid var(--line); border-left:4px solid var(--orange); box-shadow:0 4px 18px rgba(0,0,0,.18); padding:10px 14px; border-radius:6px; display:flex; gap:12px; align-items:center; font-size:.85rem; }
+@media (max-width:700px) { #cookie-note { bottom:66px; right:12px; max-width:none; } }
+
+/* Hora Kala Chakram */
+.hora-bar { display:flex; gap:8px; flex-wrap:wrap; }
+.hora-bar .btn.alt { margin-left:0; }
+.hora-head { display:flex; flex-direction:column; gap:6px; }
+.hora-cur { background:#fff3d6; border-left:4px solid var(--orange); padding:8px 12px; border-radius:4px; }
+.hora-cur span { color:var(--muted); font-size:.8rem; text-transform:uppercase; }
+.hora-h { margin:0 0 6px; color:var(--maroon); }
+table.hora-tbl td { vertical-align:middle; }
+table.hora-tbl .hora-t { white-space:nowrap; font-variant-numeric:tabular-nums; }
+table.hora-tbl .hora-use { font-size:.82rem; color:var(--muted); }
+table.hora-tbl tr.hora-good td:first-child { border-left:4px solid #5cc17a; }
+table.hora-tbl tr.hora-plain td:first-child { border-left:4px solid #cfcfcf; }
+table.hora-tbl tr.hora-now td { background:#ffe7b3 !important; font-weight:600; }
+.hora-badge { background:var(--maroon); color:#fff; font-size:.7rem; padding:1px 7px; border-radius:10px; }
+@media (max-width:560px) { table.hora-tbl .hora-use { display:none; } table.hora-tbl th:nth-child(3) { display:none; } }
+
 /* Horoscope in Numerology */
 .hs-wrap { border:1px solid var(--line); background:linear-gradient(180deg,#fffaf0,#fff); padding:16px; border-radius:6px; scroll-margin-top:12px; }
 .hs-gender { display:flex; gap:12px; margin-bottom:14px; }

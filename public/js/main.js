@@ -63,14 +63,14 @@
   // Menu: [label, href, children?]
   var MENU = [
     ['Home', 'index.html'],
-    ['Nakshatra', 'nakshatra.html', [['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Why Study Nakshatras?', 'nakshatra.html#why'], ['Numerology Numbers 1-9', 'nakshatra.html#numbers'], ['Study Worksheet', 'nakshatra.html#worksheet'], ['Study Guide (PDF)', 'downloads/Nakshatra_Numerology_Study_Guide_English.pdf']]],
+    ['Nakshatra', 'nakshatra.html', [['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['Hora Kala Chakram', 'hora.html'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Why Study Nakshatras?', 'nakshatra.html#why'], ['Numerology Numbers 1-9', 'nakshatra.html#numbers'], ['Study Worksheet', 'nakshatra.html#worksheet'], ['Study Guide (PDF)', 'downloads/Nakshatra_Numerology_Study_Guide_English.pdf']]],
     ['Numerology', 'tools.html', [['Life Path &amp; Birth Number', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'], ['Vehicle Number', 'tools.html?tool=vehicle'], ['Meaning of Numbers 1-9', 'blog.html']]],
     ['Services', 'services.html', [['Nakshatra &amp; Numerology Reading', 'service.html?service=Nakshatra%20%26%20Numerology%20Reading'], ['Marriage Compatibility', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Career Guidance', 'service.html?service=Career%20Guidance'], ['Naming Consultation', 'service.html?service=Naming%20Consultation'], ['Corporate Consultation', 'service.html?service=Corporate%20Consultation'], ['All Services', 'services.html']]],
     ['Blog', 'blog.html'], ['Videos', 'videos.html'], ['Gallery', 'gallery.html'],
-    ['About', 'about.html', [['About Us', 'about.html'], ['Why Choose Us', 'why-choose-us.html']]],
+    ['About', 'about.html', [['About Us', 'about.html'], ['Why Choose Us', 'why-choose-us.html'], ['FAQ', 'faq.html']]],
     ['Contact', 'contact.html'], ['Pay Online', 'payment.html'],
   ];
-  var SUB = [['Marriage Matching', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Horoscope in Numerology', 'index.html#horoscope'], ['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Life Path Calculator', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'],
+  var SUB = [['Marriage Matching', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Horoscope in Numerology', 'index.html#horoscope'], ['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['Hora Kala Chakram', 'hora.html'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Life Path Calculator', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'],
     ['Vehicle Number', 'tools.html?tool=vehicle'], ['Free Consultation', 'contact.html?service=Free%20Consultation%20for%20People%20in%20Need']];
 
   function isActive(item) {
@@ -96,6 +96,7 @@
   var footer = '<footer class="site"><div class="links">' +
     MENU.map(function (m) { return '<a href="' + m[1] + '">' + m[0] + '</a>'; }).join(' ') + ' ' +
     '<a href="tools.html?tool=name">Name Number</a> <a href="nakshatra.html#list">The 27 Nakshatras</a> <a href="nakshatra.html#today">Today&rsquo;s Nakshatra</a> <a href="services.html">Naming Consultation</a></div>' +
+    '<div class="links legal-links"><a href="pricing.html">Pricing</a> <a href="faq.html">FAQ</a> <a href="privacy.html">Privacy Policy</a> <a href="terms.html">Terms of Service</a> <a href="refund-policy.html">Refund &amp; Cancellation</a> <a href="disclaimer.html">Disclaimer</a> <a href="cookies.html">Cookie Policy</a></div>' +
     '<div class="cols"><div><b class="notranslate" translate="no">' + SITE.brand + '</b><br>Numerology &amp; Nakshatra Consultancy<br><span class="muted">Date of Birth Analysis | Personal Numerology | Nakshatra Study | Career, Education &amp; Future Guidance</span></div>' +
     '<div><b>Contact</b><br>' + SITE.address + '<br>Phone: <a href="tel:+91' + SITE.phone + '">' + SITE.phone + '</a><br>Email: <a href="mailto:' + SITE.email + '">' + SITE.email + '</a></div>' +
     '<div><b>Follow us</b><div class="social" style="margin-top:8px">' + socialHtml + '</div><p style="margin-top:14px">&copy; ' + new Date().getFullYear() + ' ' + SITE.brand + '</p></div></div>' +
@@ -167,6 +168,50 @@
     pr.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closePromo); });
     setTimeout(function () { pr.classList.add('on'); }, 6000);
   }
+
+  // Live visitor count: an anonymous random id per tab, pinged only while the tab is visible
+  (function () {
+    var vid;
+    try { vid = sessionStorage.getItem('vid'); if (!vid) { vid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); sessionStorage.setItem('vid', vid); } } catch (e) { return; }
+    function beat(view) {
+      if (document.visibilityState === 'hidden') return Promise.resolve();
+      return fetch('/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, body: JSON.stringify({ id: vid, page: location.pathname, view: !!view }) }).catch(function () {});
+    }
+    var counted = beat(true);
+    setInterval(function () { beat(false); }, 25000);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') beat(false); });
+    counted.then(function () { return fetch('/api/online'); }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.show) return;
+      var f = document.querySelector('footer.site .cols > div:last-child p');
+      if (f) f.insertAdjacentHTML('beforebegin', '<p class="online-now"><i></i> <b>' + d.online + '</b> online now</p>');
+    }).catch(function () {});
+  })();
+
+  // Cookie notice. Without analytics it only informs (we set just a language cookie).
+  // If the admin has added a Google Analytics ID, tracking starts only after the visitor accepts.
+  function loadGA(id) {
+    if (window.__gaLoaded) return;
+    window.__gaLoaded = true;
+    var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('js', new Date()); gtag('config', id, { anonymize_ip: true });
+  }
+  document.addEventListener('settings-ready', function () {
+    var id = (window.SITE_SETTINGS || {}).ga4_id || '', ga = /^G-[A-Z0-9]{6,12}$/.test(id), choice = null;
+    try { choice = localStorage.getItem('cookieNote'); } catch (e) { return; }
+    if (ga && choice === 'accepted') return loadGA(id);
+    if (choice) return;
+    var set = function (v) { try { localStorage.setItem('cookieNote', v); } catch (e) {} var n = document.getElementById('cookie-note'); if (n) n.remove(); if (v === 'accepted') loadGA(id); };
+    document.body.insertAdjacentHTML('beforeend', '<div id="cookie-note" role="region" aria-label="Cookie notice"><span>' +
+      (ga ? 'We use a language cookie and, with your permission, Google Analytics to count visits. ' : 'We use a cookie only to remember your language choice. ') +
+      '<a href="cookies.html">Cookie Policy</a></span>' + (ga ? '<button type="button" class="btn sm alt" data-v="declined">Decline</button><button type="button" class="btn sm" data-v="accepted">Accept</button>' : '<button type="button" class="btn sm" data-v="seen">Got it</button>') + '</div>');
+    document.querySelectorAll('#cookie-note button').forEach(function (b) { b.onclick = function () { set(b.dataset.v); }; });
+  });
+
+  // Keyboard users can jump past the menu
+  document.body.insertAdjacentHTML('afterbegin', '<a class="skip-link" href="#content">Skip to main content</a>');
 
   // ===== Lightbox =====
   var lb = document.getElementById('lightbox');

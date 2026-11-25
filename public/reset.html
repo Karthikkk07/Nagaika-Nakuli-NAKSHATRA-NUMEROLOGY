@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Reset password | Nagaika, Nakuli Numerology</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Choose a new password</h1></div></div>
+<section class="block">
+  <div class="wrap auth-wrap">
+    <form id="f" class="card auth-card" novalidate>
+      <div class="field"><label for="np">New password <span class="req">*</span></label><input id="np" type="password" autocomplete="new-password" maxlength="100"><small class="muted">At least 8 characters, with a letter and a number.</small></div>
+      <button class="btn" type="submit">Save new password</button>
+      <div class="msg" id="m" role="alert"></div>
+      <p><a href="signin.html">Back to sign in</a></p>
+    </form>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script>
+(function () {
+  var token = new URLSearchParams(location.search).get('token') || '';
+  var m = document.getElementById('m');
+  document.getElementById('f').addEventListener('submit', function (e) {
+    e.preventDefault();
+    fetch('/api/auth/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token, password: document.getElementById('np').value }) })
+      .then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) { location.href = 'account.html'; return; }
+        m.textContent = (d.errors && d.errors.password) || d.error || 'Could not reset the password.'; m.className = 'msg bad';
+      });
+  });
+})();
+</script>
+</body>
+</html>

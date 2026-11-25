@@ -79,7 +79,7 @@
   }
 
   var topbar = '<div id="topbar"><div class="in"><div class="links"><a href="nakshatra.html#find">' + sk('Nakshatra') + '</a> <a href="tools.html">Life Path</a> <a href="tools.html?tool=mobile">Lucky Number</a> <a href="nakshatra.html#today">Today&rsquo;s ' + sk('Nakshatra') + '</a> <a href="contact.html?service=Free%20Consultation%20for%20People%20in%20Need">Free Consultation</a></div>' +
-    '<div class="acts"><form class="site-search" action="search.html" role="search"><input type="search" name="q" placeholder="Search the site" aria-label="Search the website" maxlength="80" autocomplete="off"><button type="submit" aria-label="Search">&#128269;</button><div class="ss-drop" hidden></div></form><a class="pill" href="' + wa + '" target="_blank" rel="noopener"><i></i>Chat with Numerologist</a><a class="pill dk" href="contact.html">Book Consultation</a></div></div></div>';
+    '<div class="acts"><form class="site-search" action="search.html" role="search"><input type="search" name="q" placeholder="Search the site" aria-label="Search the website" maxlength="80" autocomplete="off"><button type="submit" aria-label="Search">&#128269;</button><div class="ss-drop" hidden></div></form><a class="pill" href="' + wa + '" target="_blank" rel="noopener"><i></i>Chat with Numerologist</a><a class="pill dk" href="contact.html">Book Consultation</a><a class="pill signin" id="auth-link" href="signin.html">Sign in / Sign up</a></div></div></div>';
 
   var header = '<header class="site"><a class="brand notranslate" translate="no" href="index.html"><img class="logo" src="img/favicon.svg"   alt="" onerror="this.remove()">  <span>Nagaika Nakuli<small>NAKSHATRA NUMEROLOGY, BENGALURU</small></span></a>' +
     '<div class="langbar notranslate" translate="no"><b>Read in:</b>' + LANGS.map(function (l) {
@@ -168,6 +168,15 @@
     pr.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closePromo); });
     setTimeout(function () { pr.classList.add('on'); }, 6000);
   }
+
+  // Who is signed in (customer account). The top-bar button shows the name once signed in.
+  window.ME = null;
+  window.ME_PROMISE = fetch('/api/auth/me', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+    window.ME = d.user || null;
+    var a = document.getElementById('auth-link');
+    if (a && window.ME) { a.textContent = 'Hi, ' + window.ME.name.split(' ')[0]; a.href = 'account.html'; a.title = 'My account'; }
+    return window.ME;
+  }).catch(function () { return null; });
 
   // Search box suggestions: a few matches while typing, full results on the search page
   (function () {

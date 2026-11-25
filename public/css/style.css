@@ -19,6 +19,8 @@ h1,h2,h3 { line-height:1.25; }
 .pill { display:inline-flex; align-items:center; gap:6px; background:#fff; color:#4a2a00; border-radius:5px; padding:5px 12px; font-weight:600; text-decoration:none; font-size:.85rem; }
 .pill i { width:9px; height:9px; border-radius:50%; background:#1fb25a; display:inline-block; }
 .pill.dk { background:var(--orange); color:#fff; }
+.pill.signin { background:#fff; color:#b3261e; text-transform:uppercase; letter-spacing:.02em; font-weight:500; padding:7px 16px; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.18); }
+.pill.signin:hover { background:#fff6e0; }
 
 /* page frame */
 .page { max-width:none; margin:0; background:#fff; min-height:70vh; padding-right:38px; }
@@ -349,6 +351,16 @@ footer.site .disc { padding:10px 18px 16px; color:var(--muted); font-size:.8rem;
 .mm-fee b { font-size:1.4rem; color:var(--orange-d); }
 @media (max-width:700px) { .mm-cols { grid-template-columns:1fr; } }
 
+/* Customer accounts */
+.auth-wrap { max-width:480px; }
+.auth-tabs { display:flex; gap:6px; margin-bottom:12px; }
+.auth-tabs button { flex:1; padding:10px; border:1px solid var(--line); background:#fff; border-radius:6px 6px 0 0; font:inherit; font-weight:600; color:var(--muted); cursor:pointer; }
+.auth-tabs button.on { background:var(--orange); color:#fff; border-color:var(--orange); }
+.auth-card h2 { margin:0 0 10px; color:var(--maroon); font-size:1.2rem; }
+.auth-link { margin-left:10px; color:var(--orange-d); }
+.auth-card form[hidden], .auth-card[hidden] { display:none; }
+@media (max-width:700px) { .pill.signin { padding:6px 10px; font-size:.78rem; } }
+
 /* Search */
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .site-search { position:relative; display:flex; }
@@ -364,7 +376,11 @@ footer.site .disc { padding:10px 18px 16px; color:var(--muted); font-size:.8rem;
 .sp-item { margin:10px 0; }
 .sp-item h3 { margin:4px 0; }
 .sp-list { line-height:1.9; }
-@media (max-width:700px) { .site-search { width:100%; } .site-search input { flex:1; width:auto; } .ss-drop { min-width:0; right:0; } }
+@media (max-width:700px) {
+  .site-search { flex:1 1 100%; width:100%; } .site-search input { flex:1; width:auto; } .ss-drop { min-width:0; right:0; }
+  #topbar .acts { width:100%; flex-wrap:wrap; justify-content:center; }
+  #topbar .acts .pill { font-size:.78rem; padding:6px 10px; }
+}
 
 /* Legal pages and cookie notice */
 .skip-link { position:absolute; left:-9999px; top:0; background:#fff; color:#7a1f0b; padding:8px 14px; z-index:2000; font-weight:700; }

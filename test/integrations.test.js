@@ -109,6 +109,38 @@ test('OTP is mandatory: orders, enquiries, call-backs and horoscope forms are re
   assert.strictEqual(whatsapp.length, 5);
 });
 
+test('accounts with mandatory OTP: signup needs a verified number, and a verified account skips OTP on forms', async () => {
+  const cookieOf = (r) => (r.headers.getSetCookie().find((c) => c.startsWith('sid=')) || '').split(';')[0];
+  const phone = '9811100011';
+  const acct = { name: 'Verified Vera', phone, email: 'vera@example.com', password: 'Passw0rd!x' };
+  assert.strictEqual((await fetch(BASE + '/api/auth/signup', json(acct))).status, 403);
+
+  await fetch(BASE + '/api/otp/send', json({ phone }));
+  const code = /(\d{6})/.exec(sms[sms.length - 1])[1];
+  const { token } = await (await fetch(BASE + '/api/otp/verify', json({ phone, code }))).json();
+  const up = await fetch(BASE + '/api/auth/signup', json({ ...acct, otpToken: token }));
+  assert.strictEqual(up.status, 200);
+  const cookie = cookieOf(up);
+  const me = await (await fetch(BASE + '/api/auth/me', { headers: { Cookie: cookie } })).json();
+  assert.strictEqual(me.user.phoneVerified, true);
+
+  // signed in with a verified number: no OTP token needed for that number
+  const enq = { name: 'Verified Vera', email: 'vera@example.com', phone, service: 'Job Guidance', message: 'hello there' };
+  const noCookie = await fetch(BASE + '/api/enquiry', json(enq));
+  assert.strictEqual(noCookie.status, 403);
+  const withCookie = await fetch(BASE + '/api/enquiry', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify(enq) });
+  assert.strictEqual(withCookie.status, 200);
+  // ...but not for a different number
+  assert.strictEqual((await fetch(BASE + '/api/enquiry', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify({ ...enq, phone: '9822200022' }) })).status, 403);
+
+  // reset by SMS: verified number + new password
+  await fetch(BASE + '/api/otp/send', json({ phone }));
+  const code2 = /(\d{6})/.exec(sms[sms.length - 1])[1];
+  const t2 = (await (await fetch(BASE + '/api/otp/verify', json({ phone, code: code2 }))).json()).token;
+  assert.strictEqual((await fetch(BASE + '/api/auth/reset', json({ phone, password: 'Another1pass' }))).status, 403);
+  assert.strictEqual((await fetch(BASE + '/api/auth/reset', json({ phone, otpToken: t2, password: 'Another1pass' }))).status, 200);
+});
+
 test('an unverified number never gets a WhatsApp message about wrong details', async () => {
   const before = whatsapp.length;
   await fetch(BASE + '/api/orders', json({ service: 'Job Guidance', amount: 500, name: 'X Y', phone: '9000000001', email: 'bad', message: 'm' }));

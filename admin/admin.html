@@ -176,6 +176,7 @@ function render() {
     '<div class="stat"><b>' + newOrders + '</b><span>Orders to contact</span></div>' +
     '<div class="stat"><b>' + D.enquiries.length + '</b><span>Enquiries (' + n + ' new)</span></div>' +
     '<div class="stat"><b>' + D.chats.length + '</b><span>Chatbot leads</span></div>' +
+    '<div class="stat"><b>' + (D.customers || 0) + '</b><span>Customer accounts</span></div>' +
     '<div class="stat"><b>&#8377;' + paid.reduce(function (a, p) { return a + (p.amount || 0); }, 0) + '</b><span>' + paid.length + ' online payments</span></div>';
   var h = '';
   if (tab === 'orders') {

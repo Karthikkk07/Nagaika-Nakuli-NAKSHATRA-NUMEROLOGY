@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>My Account | Nagaika, Nakuli Numerology</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>My Account</h1></div></div>
+<section class="block">
+  <div class="wrap auth-wrap" style="max-width:860px">
+    <div class="card" id="profile">
+      <h2 id="pf-name"></h2>
+      <p>Mobile: <b id="pf-phone"></b> <span id="pf-ver" class="tag"></span> <button type="button" class="btn sm" id="pf-verify" hidden>Verify mobile</button></p>
+      <p>Email: <b id="pf-email"></b></p>
+      <p><button type="button" class="btn alt" id="btn-out">Sign out</button></p>
+      <div class="msg" id="m-acc" role="alert"></div>
+    </div>
+
+    <h2 style="margin-top:26px">My orders</h2>
+    <div id="orders"><p class="muted">Loading...</p></div>
+    <p><a class="btn" href="services.html">Book a service</a></p>
+
+    <details class="faq" style="margin-top:26px">
+      <summary>Delete my account</summary>
+      <p>This removes your sign-in. Past orders stay in our accounts records for legal reasons, without a link to your account.</p>
+      <div class="field"><label for="del-pass">Enter your password to confirm</label><input id="del-pass" type="password" autocomplete="current-password"></div>
+      <button type="button" class="btn alt" id="btn-del">Delete my account</button>
+    </details>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/otp-gate.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
+  }
+  function note(t, ok) { var e = $('m-acc'); e.textContent = t; e.className = 'msg ' + (ok ? 'ok' : 'bad'); }
+  var money = function (n) { return '\u20B9' + Number(n).toLocaleString('en-IN'); };
+  var when = function (d) { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); };
+
+  function paint(me) {
+    $('pf-name').textContent = me.name;
+    $('pf-phone').textContent = me.phone;
+    $('pf-email').textContent = me.email;
+    $('pf-ver').textContent = me.phoneVerified ? 'verified' : 'not verified';
+    $('pf-verify').hidden = me.phoneVerified;
+  }
+
+  function orders() {
+    fetch('/api/auth/orders').then(function (r) { return r.json(); }).then(function (d) {
+      var box = $('orders'); box.innerHTML = '';
+      if (!d.orders || !d.orders.length) { box.innerHTML = '<p class="muted">No orders yet. Orders you place while signed in appear here' + (window.ME && !window.ME.phoneVerified ? ', and once your mobile number is verified, earlier orders on that number too' : '') + '.</p>'; return; }
+      var t = document.createElement('table'); t.className = 'dt';
+      t.innerHTML = '<thead><tr><th>Date</th><th>Service</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead>';
+      var tb = document.createElement('tbody');
+      d.orders.forEach(function (o) {
+        var tr = document.createElement('tr');
+        var cells = [when(o.paid_at || o.created_at), o.service, o.pay_status === 'free' ? 'Free' : money(o.amount), (o.refund_status === 'refunded' ? 'Refunded ' + money(o.refund_amount) : o.status === 'done' ? 'Completed' : o.status === 'contacted' ? 'In progress' : 'Received')];
+        cells.forEach(function (c) { var td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+        var td = document.createElement('td'), a = document.createElement('a'); a.href = '/api/orders/' + o.id + '/receipt.pdf'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Download'; td.appendChild(a); tr.appendChild(td);
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb); box.appendChild(t);
+    });
+  }
+
+  window.ME_PROMISE.then(function (me) {
+    if (!me) { location.replace('signin.html?next=' + encodeURIComponent('/account.html')); return; }
+    paint(me); orders();
+  });
+
+  $('btn-out').onclick = function () { post('/api/auth/signout').then(function () { location.href = '/'; }); };
+  $('pf-verify').onclick = function () {
+    OTP_GATE.ensure(ME.phone).then(function (token) {
+      return post('/api/auth/verify-phone', { otpToken: token });
+    }).then(function (d) {
+      if (d.ok) { ME.phoneVerified = true; paint(ME); orders(); note('Your mobile number is verified.', true); } else note(d.error || 'Could not verify.', false);
+    }).catch(function () { note('Verification was cancelled.', false); });
+  };
+  $('btn-del').onclick = function () {
+    if (!confirm('Delete your account? This cannot be undone.')) return;
+    post('/api/auth/delete', { password: $('del-pass').value }).then(function (d) {
+      if (d.ok) location.href = '/'; else note(d.error || 'Could not delete the account.', false);
+    });
+  };
+})();
+</script>
+</body>
+</html>

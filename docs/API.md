@@ -19,6 +19,9 @@ JSON over HTTPS. Errors look like `{ "ok": false, "error": "message" }`. Bad req
 | `POST /api/presence` `{id, page, view}` | Anonymous visitor heartbeat. 204. |
 | `GET /api/online` | `{show, online}`; hidden unless switched on. |
 | `GET /api/search?q=&limit=` | Site search over pages, services, Nakshatras and published articles. |
+| `POST /api/auth/signup`, `/signin`, `/signout`, `GET /api/auth/me` | Customer accounts. Sign-up needs a verified mobile number when OTP is on. Cookie `sid` (HttpOnly, SameSite=Lax, 30 days). Five wrong sign-ins lock a login for 15 minutes. |
+| `GET /api/auth/orders`, `POST /api/auth/verify-phone`, `/delete` | My orders, verify the account's mobile number, delete the account. |
+| `POST /api/auth/forgot`, `/reset` | Password reset by emailed link (needs SMTP) or by a mobile number verified with OTP. |
 | `GET /api/card`, `/card.vcf`, `/card-qr.svg` | E-visiting card data, contact file and QR code. |
 | `GET /api/blogs`, `/api/blogs/:id`, `/api/videos` | Content. |
 | `GET /robots.txt`, `/sitemap.xml` | SEO. |

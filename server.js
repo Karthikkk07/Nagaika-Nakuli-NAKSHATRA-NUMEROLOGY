@@ -337,6 +337,165 @@ app.post('/api/otp/verify', rateLimit(15, 10 * 60 * 1000), (req, res) => {
   res.json({ ok: true, token });
 });
 
+// ---------- customer accounts (sign up / sign in) ----------
+const auth = require('./lib/auth');
+let sessionSecret = store.getSettings().secret_session;
+if (!sessionSecret) {
+  sessionSecret = crypto.randomBytes(32).toString('hex');
+  store.setSetting('secret_session', sessionSecret);
+}
+const getCookie = (req, name) => {
+  const m = new RegExp('(?:^|;\\s*)' + name + '=([^;]+)').exec(req.headers.cookie || '');
+  return m ? decodeURIComponent(m[1]) : '';
+};
+function currentUser(req) {
+  const p = auth.parseSession(getCookie(req, 'sid'));
+  if (!p) return null;
+  const u = store.getUser(p.id);
+  return auth.checkSession(sessionSecret, p, u) ? u : null;
+}
+const publicUser = (u) => ({ id: u.id, name: u.name, phone: u.phone, email: u.email, phoneVerified: !!u.phone_verified });
+function setSession(req, res, user) {
+  const s = auth.makeSession(sessionSecret, user);
+  res.append('Set-Cookie', `sid=${encodeURIComponent(s.value)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${s.maxAgeSec}` + (req.secure ? '; Secure' : ''));
+}
+const clearSession = (res) => res.append('Set-Cookie', 'sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+// A number counts as verified if the visitor passed OTP for it, or is signed in to an account whose number was verified
+const isVerified = (req, phone, token) => {
+  if (verifiedPhone(phone, token)) return true;
+  const u = phone && currentUser(req);
+  return !!(u && u.phone_verified && u.phone === phone);
+};
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const needOtpReply = (res) => res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
+
+const authFails = new Map(); // login + address -> { n, until }
+const lockedOut = (key) => (authFails.get(key) || { until: 0 }).until > Date.now();
+function noteFail(key) {
+  const r = authFails.get(key) || { n: 0, until: 0 };
+  r.n++;
+  if (r.n >= 5) { r.until = Date.now() + 15 * 60 * 1000; r.n = 0; }
+  authFails.set(key, r);
+  if (authFails.size > 5000) authFails.clear();
+}
+
+app.get('/api/auth/me', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const u = currentUser(req);
+  res.json({ user: u ? publicUser(u) : null });
+});
+
+app.post('/api/auth/signup', rateLimit(8, 10 * 60 * 1000), (req, res) => {
+  const b = req.body || {};
+  const name = String(b.name || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 100);
+  const phone = normPhone(String(b.phone || '').slice(0, 20));
+  const email = String(b.email || '').trim().toLowerCase().slice(0, 150);
+  const errors = {};
+  if (name.length < 2) errors.name = 'Please enter your full name.';
+  if (!phone) errors.phone = 'Please enter a valid mobile number.';
+  if (!EMAIL_RE.test(email)) errors.email = 'Please enter a valid email address.';
+  const pw = auth.passwordProblem(b.password);
+  if (pw) errors.password = pw;
+  if (Object.keys(errors).length) return res.status(400).json({ ok: false, errors });
+  const verified = verifiedPhone(phone, b.otpToken);
+  if (otpRequired() && !verified) return needOtpReply(res);
+  if (store.userExists(phone, email)) return res.status(409).json({ ok: false, error: 'An account with this mobile number or email already exists. Please sign in.' });
+  const id = store.createUser({ name, phone, email, passHash: auth.hashPassword(b.password), phoneVerified: verified });
+  const user = store.getUser(id);
+  store.touchLogin(id);
+  setSession(req, res, user);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+app.post('/api/auth/signin', rateLimit(20, 10 * 60 * 1000), (req, res) => {
+  const b = req.body || {};
+  const raw = String(b.login || '').trim().slice(0, 150);
+  const login = raw.includes('@') ? raw.toLowerCase() : normPhone(raw) || raw;
+  const key = login + '|' + req.ip;
+  if (lockedOut(key)) return res.status(429).json({ ok: false, error: 'Too many wrong attempts. Please try again in 15 minutes.' });
+  const user = login ? store.findUser(login) : null;
+  // always run the hash so a wrong login takes as long as a wrong password
+  const good = auth.verifyPassword(String(b.password || ''), user ? user.pass_hash : 'x:y');
+  if (!user || !good) {
+    noteFail(key);
+    return res.status(401).json({ ok: false, error: 'Wrong mobile number, email or password.' });
+  }
+  authFails.delete(key);
+  store.touchLogin(user.id);
+  setSession(req, res, user);
+  res.json({ ok: true, user: publicUser(user) });
+});
+
+app.post('/api/auth/signout', (req, res) => {
+  clearSession(res);
+  res.json({ ok: true });
+});
+
+app.get('/api/auth/orders', (req, res) => {
+  const u = currentUser(req);
+  if (!u) return res.status(401).json({ ok: false });
+  res.set('Cache-Control', 'no-store');
+  res.json({ ok: true, orders: store.listOrdersForUser(u) });
+});
+
+// Mark the account's mobile number as verified (for accounts made before SMS was set up)
+app.post('/api/auth/verify-phone', rateLimit(10, 10 * 60 * 1000), (req, res) => {
+  const u = currentUser(req);
+  if (!u) return res.status(401).json({ ok: false });
+  if (!verifiedPhone(u.phone, (req.body || {}).otpToken)) return needOtpReply(res);
+  store.markUserVerified(u.id);
+  res.json({ ok: true });
+});
+
+// Forgot password: an email link (needs SMTP). The answer is the same whether or not the address has an account.
+app.post('/api/auth/forgot', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
+  const email = String((req.body || {}).email || '').trim().toLowerCase().slice(0, 150);
+  const user = EMAIL_RE.test(email) ? store.findUser(email) : null;
+  if (user && mailer) {
+    const token = auth.newToken();
+    store.addReset(auth.hashToken(token), user.id, Date.now() + 60 * 60 * 1000);
+    const link = `${siteUrl(req)}/reset.html?token=${token}`;
+    sendMailTo(user.email, 'Reset your password | Nagaika, Nakuli Numerology', `<p>Hello ${esc(user.name)},</p><p>Use this link to choose a new password. It works for one hour.</p><p><a href="${link}">${link}</a></p><p>If you did not ask for this, ignore this email.</p>`, `Reset your password: ${link} (valid for one hour)`)
+      .catch((e) => console.error('Reset email failed:', e.message));
+  }
+  res.json({ ok: true });
+});
+
+// Choose a new password with the emailed token, or with a mobile number verified by OTP
+app.post('/api/auth/reset', rateLimit(10, 10 * 60 * 1000), (req, res) => {
+  const b = req.body || {};
+  const pw = auth.passwordProblem(b.password);
+  if (pw) return res.status(400).json({ ok: false, errors: { password: pw } });
+  let user = null, viaPhone = false;
+  if (b.token) {
+    const r = store.takeReset(auth.hashToken(b.token));
+    user = r && store.getUser(r.user_id);
+    if (!user) return res.status(400).json({ ok: false, error: 'This reset link is invalid or has expired. Please ask for a new one.' });
+  } else {
+    const phone = normPhone(String(b.phone || ''));
+    if (!phone) return res.status(400).json({ ok: false, error: 'Enter your mobile number.' });
+    if (!verifiedPhone(phone, b.otpToken)) return needOtpReply(res);
+    user = store.findUser(phone);
+    if (!user) return res.status(404).json({ ok: false, error: 'No account was found for this mobile number.' });
+    viaPhone = true;
+  }
+  store.setUserPassword(user.id, auth.hashPassword(b.password));
+  if (viaPhone) store.markUserVerified(user.id);
+  const fresh = store.getUser(user.id);
+  setSession(req, res, fresh);
+  res.json({ ok: true, user: publicUser(fresh) });
+});
+
+// The customer may delete their own account (their past orders stay for accounts, without the link to them)
+app.post('/api/auth/delete', rateLimit(5, 10 * 60 * 1000), (req, res) => {
+  const u = currentUser(req);
+  if (!u) return res.status(401).json({ ok: false });
+  if (!auth.verifyPassword(String((req.body || {}).password || ''), u.pass_hash)) return res.status(401).json({ ok: false, error: 'Wrong password.' });
+  store.deleteUser(u.id);
+  clearSession(res);
+  res.json({ ok: true });
+});
+
 // ---------- enquiries / contact ----------
 const FIELD_LABELS = {
   name: 'Name',
@@ -376,11 +535,11 @@ app.post('/api/enquiry', rateLimit(6, 10 * 60 * 1000), async (req, res) => {
   if (d.message.length < 5) errors.message = 'Please tell us a little about your query.';
   if (Object.keys(errors).length) {
     // a verified number that submitted wrong details gets a WhatsApp message explaining what to fix
-    if (phone && verifiedPhone(phone, b.otpToken)) alertBadDetails(phone, d.name, Object.values(errors)[0]);
+    if (phone && isVerified(req, phone, b.otpToken)) alertBadDetails(phone, d.name, Object.values(errors)[0]);
     return res.status(400).json({ ok: false, errors });
   }
 
-  const verified = verifiedPhone(phone, b.otpToken);
+  const verified = isVerified(req, phone, b.otpToken);
   if (otpRequired() && !verified) return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
 
   const entry = { id: crypto.randomUUID(), receivedAt: new Date().toISOString(), phoneVerified: verified, ...d, phone };
@@ -416,7 +575,7 @@ app.post('/api/lead', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
   const name = clean(b.name, 100);
   const phone = normPhone(clean(b.phone, 20));
   if (name.length < 2 || !phone) return res.status(400).json({ ok: false, error: 'Please enter your name and a valid mobile number.' });
-  const verified = verifiedPhone(phone, b.otpToken);
+  const verified = isVerified(req, phone, b.otpToken);
   if (otpRequired() && !verified) return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
 
   const topic = clean(b.topic, 300);
@@ -451,7 +610,7 @@ app.post('/api/horoscope', rateLimit(8, 10 * 60 * 1000), async (req, res) => {
   const gender = ['Male', 'Female'].includes(b.gender) ? b.gender : '';
   const dob = /^\d{4}-\d{2}-\d{2}$/.test(String(b.dob)) ? String(b.dob) : '';
   if (name.length < 2 || !phone) return res.status(400).json({ ok: false, error: 'Please enter your name and a valid mobile number.' });
-  const verified = verifiedPhone(phone, b.otpToken);
+  const verified = isVerified(req, phone, b.otpToken);
   if (otpRequired() && !verified) return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
   if (!gender || !dob) {
     const why = 'Please choose Male or Female and enter your date of birth.';
@@ -564,11 +723,8 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
     if (name.length < 2) throw new BadInput('Please enter your name.');
     if (!phone) throw new BadInput('Please enter a valid mobile number.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new BadInput('Please enter a valid email address.');
-    if (otpRequired()) {
-      const rec = otps.get(phone);
-      if (!(b.otpToken && rec && rec.token === b.otpToken && rec.tokenExpires > Date.now())) {
-        return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
-      }
+    if (otpRequired() && !isVerified(req, phone, b.otpToken)) {
+      return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
     }
 
     let amount = 0;
@@ -601,7 +757,7 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
     }
 
     const id = crypto.randomUUID();
-    store.addOrder({ id, service: svc.name, amount, payStatus: amount ? 'pending' : 'free', name, email, phone, details, result });
+    store.addOrder({ id, service: svc.name, amount, payStatus: amount ? 'pending' : 'free', name, email, phone, details, result, userId: (currentUser(req) || {}).id });
     if (!amount) {
       await finalizeOrder(id).catch((e) => console.error('Order finalize failed', e));
       return res.json({ ok: true, id, amount: 0, free: true, order: publicOrder(store.getOrder(id)) });
@@ -609,7 +765,7 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
     res.json({ ok: true, id, amount, free: false });
   } catch (e) {
     if (e instanceof BadInput) {
-      if (badPhone && verifiedPhone(badPhone, b.otpToken)) alertBadDetails(badPhone, badName, e.message);
+      if (badPhone && isVerified(req, badPhone, b.otpToken)) alertBadDetails(badPhone, badName, e.message);
       return res.status(400).json({ ok: false, error: e.message });
     }
     console.error('Could not create order', e);
@@ -723,6 +879,8 @@ const loginFails = new Map();
 const LOCK_AFTER = 5, LOCK_MS = 15 * 60 * 1000;
 
 const adminRouter = express.Router();
+// settings the admin may see; secrets such as the session key never leave the server
+const adminSettings = () => Object.fromEntries(Object.entries(store.getSettings()).filter(([k]) => !k.startsWith('secret_')));
 adminRouter.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'admin', 'login.html')));
 adminRouter.get('/login-info', (req, res) => res.json({ totp: !!TOTP_SECRET }));
 adminRouter.post('/login', rateLimit(30, 10 * 60 * 1000), (req, res) => {
@@ -761,7 +919,7 @@ adminRouter.get('/api/data', (req, res) => {
     delete details.fingerprint; // served separately by /orders/:id/fingerprint
     return { ...o, details: { ...details, hasFingerprint }, result: o.result ? JSON.parse(o.result) : null, messages: msgs.filter((m) => m.order_id === o.id) };
   });
-  res.json({ enquiries: store.listEnquiries(), payments: store.listPayments(), chats: store.listChatLeads(), orders, mailReady: !!mailer });
+  res.json({ enquiries: store.listEnquiries(), payments: store.listPayments(), chats: store.listChatLeads(), orders, customers: store.countUsers(), mailReady: !!mailer });
 });
 adminRouter.get('/orders/:id/fingerprint', (req, res) => {
   const o = store.getOrder(req.params.id);
@@ -953,7 +1111,7 @@ adminRouter.post('/api/settings', (req, res) => {
     store.setSetting('ga4_id', g);
   }
   settingsCache.at = 0;
-  res.json({ ok: true, settings: store.getSettings() });
+  res.json({ ok: true, settings: adminSettings() });
 });
 // ---------- IndiaMART leads (optional): pulls new enquiries into the Enquiries tab ----------
 const indiamart = require('./lib/indiamart');
@@ -1008,7 +1166,7 @@ adminRouter.get('/api/indiamart', (req, res) => {
   res.json({ configured: !!process.env.INDIAMART_CRM_KEY, lastOk: s.indiamart_last_ok || '', lastError: s.indiamart_last_error || '', total: Number(s.indiamart_total) || 0 });
 });
 adminRouter.post('/api/indiamart/sync', async (req, res) => res.json(await syncIndiaMart()));
-adminRouter.get('/api/settings', (req, res) => res.json(store.getSettings()));
+adminRouter.get('/api/settings', (req, res) => res.json(adminSettings()));
 app.use('/admin', adminRouter);
 
 // ---------- public content ----------

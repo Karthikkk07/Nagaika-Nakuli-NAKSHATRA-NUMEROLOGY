@@ -104,6 +104,21 @@ db.exec(`
     ip TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_audit_at ON audit_log (at);
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    pass_hash TEXT NOT NULL,
+    phone_verified INTEGER NOT NULL DEFAULT 0,
+    last_login TEXT
+  );
+  CREATE TABLE IF NOT EXISTS password_resets (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
   CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders (phone);
   CREATE INDEX IF NOT EXISTS idx_orders_email ON orders (email);
   CREATE INDEX IF NOT EXISTS idx_orders_rzp ON orders (rzp_order_id);
@@ -122,9 +137,10 @@ db.exec(`
 
 // Columns added after the first release
 const orderCols = db.prepare(`PRAGMA table_info(orders)`).all().map((c) => c.name);
-for (const [col, ddl] of [['refund_status', 'TEXT'], ['refund_id', 'TEXT'], ['refund_amount', 'INTEGER'], ['refunded_at', 'TEXT'], ['erased_at', 'TEXT']]) {
+for (const [col, ddl] of [['refund_status', 'TEXT'], ['refund_id', 'TEXT'], ['refund_amount', 'INTEGER'], ['refunded_at', 'TEXT'], ['erased_at', 'TEXT'], ['user_id', 'INTEGER']]) {
   if (!orderCols.includes(col)) db.exec(`ALTER TABLE orders ADD COLUMN ${col} ${ddl}`);
 }
+db.exec(`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders (user_id)`);
 
 const insertEnquiry = db.prepare(
   `INSERT INTO enquiries (id, received_at, name, email, phone, phone_verified, service, mode, dob, pref_date, message, source)
@@ -180,8 +196,39 @@ module.exports = {
   setSetting: (key, value) => db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(key, value),
 
   addOrder: (o) =>
-    db.prepare(`INSERT INTO orders (id, created_at, service, amount, pay_status, name, email, phone, details, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(o.id, new Date().toISOString(), o.service, o.amount, o.payStatus, o.name, o.email, o.phone, JSON.stringify(o.details || {}), o.result ? JSON.stringify(o.result) : null),
+    db.prepare(`INSERT INTO orders (id, created_at, service, amount, pay_status, name, email, phone, details, result, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(o.id, new Date().toISOString(), o.service, o.amount, o.payStatus, o.name, o.email, o.phone, JSON.stringify(o.details || {}), o.result ? JSON.stringify(o.result) : null, o.userId || null),
+
+  // customer accounts
+  createUser: (u) =>
+    Number(db.prepare(`INSERT INTO users (created_at, name, phone, email, pass_hash, phone_verified) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(new Date().toISOString(), u.name, u.phone, u.email, u.passHash, u.phoneVerified ? 1 : 0).lastInsertRowid),
+  getUser: (id) => db.prepare(`SELECT * FROM users WHERE id = ?`).get(id),
+  findUser: (login) => db.prepare(`SELECT * FROM users WHERE phone = ? OR email = ?`).get(login, String(login).toLowerCase()),
+  userExists: (phone, email) => !!db.prepare(`SELECT 1 FROM users WHERE phone = ? OR email = ?`).get(phone, email),
+  touchLogin: (id) => db.prepare(`UPDATE users SET last_login = ? WHERE id = ?`).run(new Date().toISOString(), id),
+  setUserPassword: (id, passHash) => db.prepare(`UPDATE users SET pass_hash = ? WHERE id = ?`).run(passHash, id),
+  markUserVerified: (id) => db.prepare(`UPDATE users SET phone_verified = 1 WHERE id = ?`).run(id),
+  deleteUser: (id) => {
+    db.prepare(`UPDATE orders SET user_id = NULL WHERE user_id = ?`).run(id);
+    db.prepare(`DELETE FROM password_resets WHERE user_id = ?`).run(id);
+    return db.prepare(`DELETE FROM users WHERE id = ?`).run(id);
+  },
+  countUsers: () => Number(db.prepare(`SELECT COUNT(*) AS n FROM users`).get().n),
+  addReset: (tokenHash, userId, expiresAt) => {
+    db.prepare(`DELETE FROM password_resets WHERE user_id = ? OR expires_at < ?`).run(userId, Date.now());
+    db.prepare(`INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)`).run(tokenHash, userId, expiresAt);
+  },
+  takeReset: (tokenHash) => {
+    const r = db.prepare(`SELECT * FROM password_resets WHERE token_hash = ?`).get(tokenHash);
+    if (r) db.prepare(`DELETE FROM password_resets WHERE token_hash = ?`).run(tokenHash);
+    return r && r.expires_at > Date.now() ? r : null;
+  },
+  // orders placed while signed in, plus orders on the account's mobile number once that number is verified
+  listOrdersForUser: (user) =>
+    db.prepare(`SELECT id, created_at, paid_at, service, amount, status, pay_status, pay_mode, refund_status, refund_amount FROM orders
+      WHERE pay_status IN ('paid', 'free') AND (user_id = ? OR (? = 1 AND phone = ?)) ORDER BY COALESCE(paid_at, created_at) DESC LIMIT 200`)
+      .all(user.id, user.phone_verified ? 1 : 0, user.phone),
   getOrder: (id) => db.prepare(`SELECT * FROM orders WHERE id = ?`).get(id),
   getOrderByRzp: (rzpOrderId) => db.prepare(`SELECT * FROM orders WHERE rzp_order_id = ?`).get(rzpOrderId),
   setOrderRzp: (id, rzpOrderId) => db.prepare(`UPDATE orders SET rzp_order_id = ? WHERE id = ?`).run(rzpOrderId, id),
@@ -201,6 +248,11 @@ module.exports = {
   erasePerson: ({ phone, email }) => {
     const ph = phone || '__none__', em = (email || '__none__').toLowerCase();
     const enq = db.prepare(`DELETE FROM enquiries WHERE phone = ? OR LOWER(email) = ?`).run(ph, em).changes;
+    for (const u of db.prepare(`SELECT id FROM users WHERE phone = ? OR email = ?`).all(ph, em)) {
+      db.prepare(`UPDATE orders SET user_id = NULL WHERE user_id = ?`).run(u.id);
+      db.prepare(`DELETE FROM password_resets WHERE user_id = ?`).run(u.id);
+      db.prepare(`DELETE FROM users WHERE id = ?`).run(u.id);
+    }
     const rows = db.prepare(`SELECT id, rzp_order_id FROM orders WHERE phone = ? OR LOWER(email) = ?`).all(ph, em);
     const ids = rows.map((r) => r.id);
     for (const r of rows) {

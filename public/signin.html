@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sign in or Sign up | Nagaika, Nakuli Numerology</title>
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Sign in / Sign up</h1></div></div>
+<section class="block">
+  <div class="wrap auth-wrap">
+    <div class="auth-tabs" role="tablist">
+      <button type="button" role="tab" id="tab-in" aria-selected="true" class="on">Sign in</button>
+      <button type="button" role="tab" id="tab-up" aria-selected="false">Create account</button>
+    </div>
+
+    <form id="f-in" class="card auth-card" novalidate>
+      <h2>Welcome back</h2>
+      <div class="field"><label for="si-login">Mobile number or email <span class="req">*</span></label><input id="si-login" autocomplete="username" maxlength="150"></div>
+      <div class="field"><label for="si-pass">Password <span class="req">*</span></label><input id="si-pass" type="password" autocomplete="current-password" maxlength="100"></div>
+      <button class="btn" type="submit">Sign in</button> <a href="#" id="to-forgot" class="auth-link">Forgot password?</a>
+      <div class="msg" id="m-in" role="alert"></div>
+    </form>
+
+    <form id="f-up" class="card auth-card" novalidate hidden>
+      <h2>Create your account</h2>
+      <p class="muted">See your orders and receipts in one place.</p>
+      <div class="field"><label for="su-name">Full name <span class="req">*</span></label><input id="su-name" autocomplete="name" maxlength="100"><div class="err" data-e="name"></div></div>
+      <div class="field"><label for="su-phone">Mobile number <span class="req">*</span></label><input id="su-phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="20"><div class="err" data-e="phone"></div></div>
+      <div class="field"><label for="su-email">Email <span class="req">*</span></label><input id="su-email" type="email" autocomplete="email" maxlength="150"><div class="err" data-e="email"></div></div>
+      <div class="field"><label for="su-pass">Password <span class="req">*</span></label><input id="su-pass" type="password" autocomplete="new-password" maxlength="100"><div class="err" data-e="password"></div><small class="muted">At least 8 characters, with a letter and a number.</small></div>
+      <label class="chk"><input type="checkbox" id="su-agree"> I agree to the <a href="terms.html" target="_blank">Terms</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>. <span class="req">*</span></label>
+      <button class="btn" type="submit">Create account</button>
+      <div class="msg" id="m-up" role="alert"></div>
+    </form>
+
+    <div id="p-forgot" class="card auth-card" hidden>
+      <h2>Forgot your password?</h2>
+      <form id="f-fp" novalidate>
+        <p class="muted">Enter your email and we will send you a link to choose a new password.</p>
+        <div class="field"><label for="fp-email">Email <span class="req">*</span></label><input id="fp-email" type="email" autocomplete="email" maxlength="150"></div>
+        <button class="btn" type="submit">Email me a reset link</button>
+      </form>
+      <form id="f-fs" novalidate hidden style="margin-top:16px">
+        <p class="muted"><b>Or use your mobile number.</b> We send an SMS code, then you choose a new password.</p>
+        <div class="field"><label for="fs-phone">Mobile number</label><input id="fs-phone" type="tel" inputmode="numeric" maxlength="20"></div>
+        <div class="field"><label for="fs-pass">New password</label><input id="fs-pass" type="password" autocomplete="new-password" maxlength="100"></div>
+        <button class="btn" type="submit">Verify and set password</button>
+      </form>
+      <div class="msg" id="m-fp" role="alert"></div>
+      <p><a href="#" id="to-signin" class="auth-link">Back to sign in</a></p>
+    </div>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script src="js/otp-gate.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var next = (function () { var n = new URLSearchParams(location.search).get('next') || ''; return /^\/[A-Za-z0-9_\-./?=&%#]*$/.test(n) && n.indexOf('//') !== 0 ? n : 'account.html'; })();
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
+  }
+  function msg(id, text, ok) { var e = $(id); e.textContent = text; e.className = 'msg ' + (ok ? 'ok' : 'bad'); }
+  function show(which) {
+    $('f-in').hidden = which !== 'in'; $('f-up').hidden = which !== 'up'; $('p-forgot').hidden = which !== 'fp';
+    $('tab-in').className = which === 'in' ? 'on' : ''; $('tab-up').className = which === 'up' ? 'on' : '';
+    $('tab-in').setAttribute('aria-selected', which === 'in'); $('tab-up').setAttribute('aria-selected', which === 'up');
+  }
+  $('tab-in').onclick = function () { show('in'); };
+  $('tab-up').onclick = function () { show('up'); };
+  $('to-forgot').onclick = function (e) { e.preventDefault(); show('fp'); };
+  $('to-signin').onclick = function (e) { e.preventDefault(); show('in'); };
+  if (location.hash === '#signup') show('up');
+
+  window.ME_PROMISE.then(function (me) { if (me) location.replace(next); });
+  fetch('/api/config').then(function (r) { return r.json(); }).then(function (c) { if (c.otpRequired) $('f-fs').hidden = false; });
+
+  $('f-in').addEventListener('submit', function (e) {
+    e.preventDefault();
+    msg('m-in', '', true); $('m-in').className = 'msg';
+    post('/api/auth/signin', { login: $('si-login').value, password: $('si-pass').value }).then(function (d) {
+      if (d.ok) location.href = next; else msg('m-in', d.error || 'Could not sign in.', false);
+    });
+  });
+
+  $('f-up').addEventListener('submit', function (e) {
+    e.preventDefault();
+    document.querySelectorAll('#f-up .err').forEach(function (x) { x.textContent = ''; });
+    $('m-up').className = 'msg';
+    if (!$('su-agree').checked) return msg('m-up', 'Please agree to the Terms and Privacy Policy.', false);
+    var body = { name: $('su-name').value, phone: $('su-phone').value, email: $('su-email').value, password: $('su-pass').value };
+    OTP_GATE.ensure(body.phone).then(function (token) {
+      body.otpToken = token;
+      return post('/api/auth/signup', body);
+    }).then(function (d) {
+      if (d.ok) return (location.href = next);
+      if (d.errors) Object.keys(d.errors).forEach(function (k) { var el = document.querySelector('#f-up [data-e="' + k + '"]'); if (el) el.textContent = d.errors[k]; });
+      msg('m-up', d.error || 'Please correct the highlighted fields.', false);
+    }).catch(function () { msg('m-up', 'Please verify your mobile number to create an account.', false); });
+  });
+
+  $('f-fp').addEventListener('submit', function (e) {
+    e.preventDefault();
+    post('/api/auth/forgot', { email: $('fp-email').value }).then(function () {
+      msg('m-fp', 'If an account exists for that email, we have sent a link to reset the password. It works for one hour.', true);
+    });
+  });
+
+  $('f-fs').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var phone = $('fs-phone').value;
+    OTP_GATE.ensure(phone).then(function (token) {
+      return post('/api/auth/reset', { phone: phone, otpToken: token, password: $('fs-pass').value });
+    }).then(function (d) {
+      if (d.ok) return (location.href = next);
+      msg('m-fp', (d.errors && d.errors.password) || d.error || 'Could not reset the password.', false);
+    }).catch(function () { msg('m-fp', 'Please verify your mobile number first.', false); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -117,6 +117,67 @@ test('switches: orders can be paused and maintenance mode shows a 503 page', asy
   assert.strictEqual((await fetch(BASE + '/index.html')).status, 200);
 });
 
+test('customer accounts: sign up, sign in, orders, password reset, lockout, delete', async () => {
+  const crypto = require('crypto');
+  const { DatabaseSync } = require('node:sqlite');
+  const cookieOf = (r) => (r.headers.getSetCookie().find((c) => c.startsWith('sid=')) || '').split(';')[0];
+  const call = (url, body, cookie) => fetch(BASE + url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body || {}) });
+  const me = async (cookie) => (await (await fetch(BASE + '/api/auth/me', { headers: cookie ? { Cookie: cookie } : {} })).json()).user;
+
+  assert.strictEqual(await me(), null);
+  const weak = await call('/api/auth/signup', { name: 'A', phone: '123', email: 'x', password: 'short' });
+  assert.strictEqual(weak.status, 400);
+  assert.ok(Object.keys((await weak.json()).errors).length >= 4);
+
+  const acct = { name: 'Asha Rao', phone: '9812345678', email: 'Asha@Example.com', password: 'Passw0rd!x' };
+  const up = await call('/api/auth/signup', acct);
+  assert.strictEqual(up.status, 200);
+  let cookie = cookieOf(up);
+  assert.ok(cookie.startsWith('sid='));
+  assert.match(up.headers.get('set-cookie'), /HttpOnly/);
+  const who = await me(cookie);
+  assert.deepStrictEqual({ name: who.name, phone: who.phone, email: who.email, phoneVerified: who.phoneVerified }, { name: 'Asha Rao', phone: '+919812345678', email: 'asha@example.com', phoneVerified: false });
+  assert.ok(!JSON.stringify(who).includes('pass'));
+  assert.strictEqual((await call('/api/auth/signup', acct)).status, 409);
+  assert.strictEqual((await me('sid=tampered')), null);
+
+  // an order placed while signed in shows in My orders; someone else's order on the same number does not, until the number is verified
+  const mk = (cookieHdr, phone) => fetch(BASE + '/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookieHdr ? { Cookie: cookieHdr } : {}) }, body: JSON.stringify({ service: 'Job Guidance', amount: 400, name: 'Asha Rao', phone, email: 'asha@example.com', message: 'hi' }) }).then((r) => r.json());
+  const mine = await mk(cookie, '9812345678');
+  const other = await mk('', '9812345678');
+  for (const o of [mine, other]) await fetch(`${BASE}/api/orders/${o.id}/demo-pay`, json({}));
+  const list = await (await fetch(BASE + '/api/auth/orders', { headers: { Cookie: cookie } })).json();
+  assert.deepStrictEqual(list.orders.map((o) => o.id), [mine.id]);
+  assert.strictEqual((await fetch(BASE + '/api/auth/orders')).status, 401);
+
+  // sign in with mobile or email; wrong password is refused and locks out after 5 tries
+  assert.strictEqual((await call('/api/auth/signin', { login: '9812345678', password: 'Passw0rd!x' })).status, 200);
+  assert.strictEqual((await call('/api/auth/signin', { login: 'ASHA@example.com', password: 'Passw0rd!x' })).status, 200);
+  for (let i = 0; i < 5; i++) assert.strictEqual((await call('/api/auth/signin', { login: '9812345678', password: 'nope' + i })).status, 401);
+  assert.strictEqual((await call('/api/auth/signin', { login: '9812345678', password: 'Passw0rd!x' })).status, 429);
+
+  // password reset by emailed token: one use, and it signs out the old session
+  const db = new DatabaseSync(path.join(DATA_DIR, 'numerology.db'));
+  const token = 'a'.repeat(64);
+  const uid = db.prepare(`SELECT id FROM users WHERE phone = '+919812345678'`).get().id;
+  db.prepare(`INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)`).run(crypto.createHash('sha256').update(token).digest('hex'), uid, Date.now() + 3600000);
+  assert.strictEqual((await call('/api/auth/reset', { token, password: 'weak' })).status, 400);
+  const reset = await call('/api/auth/reset', { token, password: 'NewPassw0rd' });
+  assert.strictEqual(reset.status, 200);
+  const newCookie = cookieOf(reset);
+  assert.ok(await me(newCookie));
+  assert.strictEqual(await me(cookie), null);
+  assert.strictEqual((await call('/api/auth/reset', { token, password: 'AnotherPass1' })).status, 400);
+  assert.strictEqual((await call('/api/auth/forgot', { email: 'nobody@example.com' })).status, 200);
+
+  // deleting the account needs the password and keeps the paid order without the link
+  assert.strictEqual((await call('/api/auth/delete', { password: 'wrong' }, newCookie)).status, 401);
+  assert.strictEqual((await call('/api/auth/delete', { password: 'NewPassw0rd' }, newCookie)).status, 200);
+  assert.strictEqual(await me(newCookie), null);
+  assert.strictEqual(db.prepare(`SELECT user_id FROM orders WHERE id = ?`).get(mine.id).user_id, null);
+  db.close();
+});
+
 test('admin sign-in locks out after repeated wrong passwords', async () => {
   let last;
   for (let i = 0; i < 6; i++) last = await fetch(BASE + '/admin/login', json({ username: 'admin', password: 'wrong' + i }));

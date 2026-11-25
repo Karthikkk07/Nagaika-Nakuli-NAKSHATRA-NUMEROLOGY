@@ -16,6 +16,7 @@
     return cfgPromise;
   }
   var last10 = function (p) { return String(p || '').replace(/\D/g, '').slice(-10); };
+  var me = function () { return window.ME_PROMISE || Promise.resolve(null); };
 
   // Shows the verification dialog. prefill + locked: verify exactly this number (used when a form already has one).
   // blocking: no way to dismiss it except going back to the home page (used as step 1 of a page).
@@ -66,10 +67,13 @@
     });
   }
 
-  // Resolves with a verified-number token ('' when OTP is not required). Rejects if the visitor cancels.
+  // Resolves with a verified-number token ('' when OTP is not required or the signed-in account's number is verified).
+  // Rejects if the visitor cancels.
   state.ensure = function (phone) {
-    return config().then(function (c) {
+    return Promise.all([config(), me()]).then(function (a) {
+      var c = a[0], who = a[1];
       if (!c.otpRequired) return '';
+      if (who && who.phoneVerified && phone && last10(who.phone) === last10(phone)) return '';
       if (state.token && phone && last10(state.phone) === last10(phone)) return state.token;
       return dialog(phone || '', !!phone, false);
     });
@@ -85,11 +89,13 @@
     });
   }
 
-  // Step 1 on pages that have a phone field of their own
+  // Step 1 on pages that have a phone field of their own (skipped when signed in with a verified number)
   var hasForm = FIELDS.some(function (id) { return document.getElementById(id); });
   if (hasForm) {
-    config().then(function (c) {
-      if (c.otpRequired) dialog('', false, true).then(lockFields);
+    Promise.all([config(), me()]).then(function (a) {
+      if (!a[0].otpRequired) return;
+      if (a[1] && a[1].phoneVerified) { state.phone = a[1].phone; lockFields(); return; }
+      dialog('', false, true).then(lockFields);
     });
   }
 })();

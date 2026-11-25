@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visiting Card | Nagaika, Nakuli Numerology</title>
+<meta name="description" content="E-visiting card of Nagaika, Nakuli Numerology, Bengaluru. Save the contact, call, WhatsApp, get directions or share the card.">
+<meta property="og:title" content="Visiting Card | Nagaika, Nakuli Numerology"><meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.vcard { max-width:460px; margin:0 auto; background:#fff; border:1px solid var(--line); border-top:8px solid var(--yellow); border-radius:10px; box-shadow:0 6px 24px rgba(122,59,0,.18); overflow:hidden; }
+.vcard .top { background:var(--cream); text-align:center; padding:22px 18px 14px; }
+.vcard .top img { height:64px; margin-bottom:8px; }
+.vcard h2 { margin:0; color:var(--maroon); font-size:1.35rem; }
+.vcard .sub { margin:4px 0 0; color:var(--muted); font-size:.92rem; }
+.vcard .body { padding:16px 22px; }
+.vcard .body p { margin:8px 0; }
+.vcard .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 22px 16px; }
+.vcard .actions .btn { text-align:center; margin:0; }
+.vcard .qr { text-align:center; padding:6px 22px 22px; }
+.vcard .qr img { width:170px; height:170px; }
+.vcard .qr small { display:block; color:var(--muted); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Visiting Card</h1></div></div>
+<section class="block">
+  <div class="wrap">
+    <div class="vcard" id="vcard">
+      <div class="top"><img src="img/logo.png" alt="" onerror="this.remove()"><h2 id="vc-org">Nagaika, Nakuli Numerology</h2><p class="sub" id="vc-title"></p></div>
+      <div class="body">
+        <p id="vc-tag"></p>
+        <p><b>Phone</b><br><a id="vc-phone" href="#"></a></p>
+        <p><b>Email</b><br><a id="vc-email" href="#"></a></p>
+        <p><b>Address</b><br><span id="vc-addr"></span></p>
+        <p><b>Website</b><br><a id="vc-web" href="#"></a></p>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/card.vcf" download>Save contact</a>
+        <a class="btn alt" id="vc-call" href="#">Call</a>
+        <a class="btn yellow" id="vc-wa" href="#" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn alt" id="vc-map" href="#" target="_blank" rel="noopener">Directions</a>
+        <button type="button" class="btn" id="vc-share" style="grid-column:1/-1">Share this card</button>
+      </div>
+      <div class="qr"><img src="/card-qr.svg" alt="QR code that opens this visiting card"><small>Scan to open this card on your phone</small></div>
+    </div>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script>
+fetch('/api/card').then(function (r) { return r.json(); }).then(function (c) {
+  var set = function (id, t) { document.getElementById(id).textContent = t; };
+  set('vc-org', c.org); set('vc-title', c.title); set('vc-tag', c.tagline);
+  var addr = [c.street, c.city + ', ' + c.region + ' - ' + c.postal].join(', ');
+  set('vc-addr', addr);
+  var p = document.getElementById('vc-phone'); p.textContent = c.phone.replace('+91', ''); p.href = 'tel:' + c.phone;
+  var e = document.getElementById('vc-email'); e.textContent = c.email; e.href = 'mailto:' + c.email;
+  var w = document.getElementById('vc-web'); w.textContent = c.url.replace(/^https?:\/\//, '').replace(/\/$/, ''); w.href = c.url;
+  document.getElementById('vc-call').href = 'tel:' + c.phone;
+  document.getElementById('vc-wa').href = 'https://wa.me/' + c.whatsapp + '?text=' + encodeURIComponent('Hello, I would like a numerology consultation');
+  document.getElementById('vc-map').href = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr);
+  document.getElementById('vc-share').onclick = function () {
+    var data = { title: c.org, text: c.org + ' - ' + c.title, url: c.cardUrl };
+    if (navigator.share) navigator.share(data).catch(function () {});
+    else window.open('https://wa.me/?text=' + encodeURIComponent(data.text + ' ' + data.url), '_blank', 'noopener');
+  };
+});
+</script>
+</body>
+</html>

@@ -8,7 +8,9 @@
 - [ ] `ADMIN_PASSWORD` set to a long unique value; two-factor on (`node scripts/totp-secret.js`).
 - [ ] SMTP set (order emails, receipts) and `ADMIN_EMAIL` correct. Send a test order.
 - [ ] SMS (Twilio, with India DLT registration) if OTP is wanted; then switch on "Require mobile OTP".
-- [ ] WhatsApp Business API and approved templates `payment_failed` (2 variables: name, service) and `refund_processed` (3: name, amount, service), if wanted.
+- [ ] WhatsApp Business API and approved templates `payment_failed` (2 variables: name, service), `refund_processed` (3: name, amount, service) and `details_error` (2: name, what to fix), if wanted.
+- [ ] IndiaMART Pull API key set as `INDIAMART_CRM_KEY` (paid seller account); click Sync now in Settings once to check.
+- [ ] Review the four starter articles and publish the ones you like; check the visiting card details in `CARD` in `server.js`.
 - [ ] Owner has read and approved the Privacy, Terms, Refund, Disclaimer and Cookie pages. **Have a lawyer review them.**
 - [ ] Custom domain, HTTPS, `SITE_URL` set; sitemap submitted in Google Search Console; Google Business Profile created.
 - [ ] Real social links in Settings; check prices on `/pricing.html` (for example Corporate Consultation).

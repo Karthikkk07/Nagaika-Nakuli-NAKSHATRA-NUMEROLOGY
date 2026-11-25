@@ -33,6 +33,22 @@ test('Hora timings match the Hyderabad almanac values for 25 Nov 2026', () => {
   assert.strictEqual(H.fmt(d.horas[1].from, tz) + '-' + H.fmt(d.horas[1].to, tz), '07:22-08:18');
 });
 
+test('IndiaMART helpers format times in IST and map a lead to an enquiry', () => {
+  const im = require('../lib/indiamart');
+  assert.strictEqual(im.istStamp(Date.UTC(2026, 10, 25, 12, 0, 0)), '25-11-202617:30:00');
+  assert.strictEqual(im.queryTimeToIso('2026-11-25 17:30:00'), '2026-11-25T12:00:00.000Z');
+  const url = im.buildUrl('k+ey', Date.UTC(2026, 0, 1), Date.UTC(2026, 10, 25));
+  assert.match(url, /glusr_crm_key=k%2Bey/);
+  // a window longer than 7 days is cut down to the limit
+  assert.match(url, /start_time=18-11-2026/);
+  const e = im.toEnquiry({ UNIQUE_QUERY_ID: '5', QUERY_TYPE: 'B', SENDER_MOBILE: '+91 98765-43210', QUERY_MESSAGE: 'hi', SENDER_CITY: 'Pune' });
+  assert.strictEqual(e.id, 'im-5');
+  assert.strictEqual(e.phone, '+919876543210');
+  assert.strictEqual(e.name, 'IndiaMART Buyer');
+  assert.match(e.message, /Buy lead. hi. Location: Pune/);
+  assert.strictEqual(im.toEnquiry({}), null);
+});
+
 test('presence counts only recent visitors and de-duplicates by id', () => {
   const t0 = Date.now();
   presence.ping('aaaaaaaa1', '/a', true, t0);

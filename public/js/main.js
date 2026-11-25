@@ -67,7 +67,7 @@
     ['Numerology', 'tools.html', [['Life Path &amp; Birth Number', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'], ['Vehicle Number', 'tools.html?tool=vehicle'], ['Meaning of Numbers 1-9', 'blog.html']]],
     ['Services', 'services.html', [['Nakshatra &amp; Numerology Reading', 'service.html?service=Nakshatra%20%26%20Numerology%20Reading'], ['Marriage Compatibility', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Career Guidance', 'service.html?service=Career%20Guidance'], ['Naming Consultation', 'service.html?service=Naming%20Consultation'], ['Corporate Consultation', 'service.html?service=Corporate%20Consultation'], ['All Services', 'services.html']]],
     ['Blog', 'blog.html'], ['Videos', 'videos.html'], ['Gallery', 'gallery.html'],
-    ['About', 'about.html', [['About Us', 'about.html'], ['Why Choose Us', 'why-choose-us.html'], ['FAQ', 'faq.html']]],
+    ['About', 'about.html', [['About Us', 'about.html'], ['Why Choose Us', 'why-choose-us.html'], ['FAQ', 'faq.html'], ['Visiting Card', 'card.html']]],
     ['Contact', 'contact.html'], ['Pay Online', 'payment.html'],
   ];
   var SUB = [['Marriage Matching', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Horoscope in Numerology', 'index.html#horoscope'], ['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['Hora Kala Chakram', 'hora.html'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Life Path Calculator', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'],

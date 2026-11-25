@@ -47,6 +47,7 @@
 
   // Create the order on the server (validates the details). Resolves with { id, amount, free, order }.
   function createOrder(payload) {
+    if (!payload.otpToken && window.OTP_GATE && OTP_GATE.token) payload.otpToken = OTP_GATE.token;
     return config().then(function (c) {
       return c.otpRequired && !payload.otpToken ? askOtp(payload.phone).then(function (t) { payload.otpToken = t; }) : null;
     }).then(function () {

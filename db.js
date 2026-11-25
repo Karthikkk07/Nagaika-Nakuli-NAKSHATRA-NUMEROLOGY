@@ -139,6 +139,10 @@ module.exports = {
   db,
   addEnquiry: (e) =>
     insertEnquiry.run(e.id, e.receivedAt, e.name, e.email, e.phone, e.phoneVerified ? 1 : 0, e.service, e.mode, e.dob, e.date, e.message, e.source),
+  // for imported leads: returns true only if the lead was not already stored
+  addEnquiryIfNew: (e) =>
+    Number(db.prepare(`INSERT OR IGNORE INTO enquiries (id, received_at, name, email, phone, phone_verified, service, mode, dob, pref_date, message, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(e.id, e.receivedAt, e.name, e.email, e.phone, 0, e.service, e.mode, e.dob, e.date, e.message, e.source).changes) > 0,
   addPayment: (p) => insertPayment.run(new Date().toISOString(), p.orderId, p.paymentId || null, p.amount || null, p.service || '', p.name || '', p.status),
   markPaymentPaid: (orderId, paymentId) =>
     db.prepare(`UPDATE payments SET status = 'paid', payment_id = ? WHERE order_id = ?`).run(paymentId, orderId),
@@ -159,6 +163,7 @@ module.exports = {
     db.prepare(`UPDATE blogs SET title = ?, summary = ?, body = ?, image = ?, published = ? WHERE id = ?`)
       .run(b.title, b.summary, b.body, b.image, b.published ? 1 : 0, id),
   deleteBlog: (id) => db.prepare(`DELETE FROM blogs WHERE id = ?`).run(id),
+  blogTitleExists: (title) => !!db.prepare(`SELECT 1 FROM blogs WHERE title = ?`).get(title),
 
   listVideos: () => db.prepare(`SELECT * FROM videos ORDER BY id DESC`).all(),
   addVideo: (v) => db.prepare(`INSERT INTO videos (created_at, youtube_id, kind, title) VALUES (?, ?, ?, ?)`).run(new Date().toISOString(), v.youtubeId, v.kind, v.title),

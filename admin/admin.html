@@ -102,8 +102,8 @@ function api(url, method, body) {
     .then(function (r) { if (r.status === 401) { location.href = '/admin/login'; throw 0; } return r.json(); });
 }
 function load() {
-  return Promise.all([api('/admin/api/data'), api('/admin/api/blogs'), api('/admin/api/videos'), fetch('/api/settings').then(function (r) { return r.json(); })])
-    .then(function (a) { D = Object.assign(a[0], { blogs: a[1], videos: a[2], settings: a[3] }); render(); }).catch(function () {});
+  return Promise.all([api('/admin/api/data'), api('/admin/api/blogs'), api('/admin/api/videos'), api('/admin/api/settings'), api('/admin/api/indiamart')])
+    .then(function (a) { D = Object.assign(a[0], { blogs: a[1], videos: a[2], settings: a[3], indiamart: a[4] }); render(); }).catch(function () {});
 }
 function flash(t, bad) { flashMsg = { t: t, bad: bad }; render(); }
 function logout() { fetch('/admin/logout', { method: 'POST' }).then(function () { location.href = '/admin/login'; }); }
@@ -199,7 +199,7 @@ function render() {
       '<label>Article text (leave a blank line between paragraphs)</label><textarea id="b-body" rows="10">' + esc(b.body) + '</textarea>' +
       '<label><input type="checkbox" id="b-pub" style="width:auto"' + (b.published ? ' checked' : '') + '> Published (visible on the website)</label><br><br>' +
       '<button class="btn" onclick="saveBlog()">' + (editing ? 'Save changes' : 'Publish article') + '</button> ' +
-      (editing ? '<button class="btn w" onclick="editing=null;render()">Cancel</button>' : '') + '</div>' +
+      (editing ? '<button class="btn w" onclick="editing=null;render()">Cancel</button>' : '<button class="btn w" onclick="addStarter()">Add 4 starter articles as drafts</button>') + '</div>' +
       (D.blogs.length ? '<div class="wrap"><table class="stk"><tr><th>Date</th><th>Title</th><th>Status</th><th></th></tr>' +
       D.blogs.map(function (p) {
         return '<tr><td data-l="Date">' + new Date(p.created_at).toLocaleDateString('en-IN') + '</td><td data-l="Title">' + esc(p.title) + '</td><td data-l="Status">' + (p.published ? 'Published' : 'Draft') + '</td>' +
@@ -247,6 +247,13 @@ function render() {
       '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-otp" ' + (s.otp_orders === 'on' ? 'checked' : '') + '> Require mobile OTP before an order</label>' +
       '<p class="note">Customers must enter an SMS code before paying. Only takes effect once SMS (Twilio) is set up on the server; until then it is ignored so no one is locked out.</p>' +
       '<button class="btn" onclick="saveSwitches()">Save switches</button></div>' +
+      '<div class="panel" style="max-width:640px;margin-top:14px"><b>IndiaMART leads</b>' + (function () {
+        var im = D.indiamart || {};
+        if (!im.configured) return '<p class="note">Not connected. Get the Pull API key from seller.indiamart.com (Lead Manager &gt; Import/Export Leads &gt; Pull API) and set it as <code>INDIAMART_CRM_KEY</code> on the server. New IndiaMART leads then appear in the Enquiries tab with the source &ldquo;indiamart&rdquo;, checked every 6 minutes.</p>';
+        return '<p class="note">Connected. ' + esc(im.total) + ' leads imported. ' + (im.lastOk ? 'Last sync ' + fmt(im.lastOk) + '.' : 'Not synced yet.') + '</p>' +
+          (im.lastError ? '<p class="note" style="color:#b3261e">Last error: ' + esc(im.lastError) + '</p>' : '') +
+          '<button class="btn" onclick="syncIM()">Sync now</button>';
+      })() + '</div>' +
       '<div class="panel" style="max-width:640px;margin-top:14px"><b>Google Analytics (optional)</b><p class="note">Paste a GA4 measurement ID (G-XXXXXXXXXX). Visitors are asked first and tracking only starts if they accept. Leave blank to keep analytics off.</p>' +
       '<input id="st-ga4" value="' + esc(s.ga4_id) + '" placeholder="G-XXXXXXXXXX"><button class="btn" onclick="saveAnalytics()">Save</button></div>' +
       '<div class="panel" style="max-width:640px;margin-top:14px"><b>Data protection</b><p class="note">Erase one person\'s data on request (DPDP Act). Enquiries are deleted; orders are anonymised but the amount and payment reference stay for accounts.</p>' +
@@ -305,6 +312,16 @@ function refreshLive() {
   }).catch(function () {});
 }
 setInterval(function () { if (tab === 'live') refreshLive(); }, 10000);
+function addStarter() {
+  api('/admin/api/blogs/starter', 'POST').then(function (d) {
+    load().then(function () { flash(d.added ? d.added + ' draft articles added. Read them, edit if you wish, then tick Published.' : 'The starter articles are already there.'); });
+  });
+}
+function syncIM() {
+  api('/admin/api/indiamart/sync', 'POST').then(function (d) {
+    load().then(function () { flash(d.ok ? 'Synced: ' + d.fetched + ' leads checked, ' + d.added + ' new.' : (d.error || 'Sync failed.'), !d.ok); });
+  });
+}
 function refundO(id, max) {
   var v = prompt('Refund how many rupees? (up to ' + max + '). The customer is told by email/WhatsApp.', max);
   if (v === null) return;

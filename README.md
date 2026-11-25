@@ -32,6 +32,11 @@ Services, enquiry form with optional OTP, guided chatbot, WhatsApp button, Razor
 - **Admin controls:** maintenance mode, pause bookings, require OTP on orders, Google Analytics ID (loads only after the visitor accepts), audit log, refunds (full or partial), data erasure on request, database backup download, optional two-factor login (TOTP) and sign-in lockout.
 - **Payments:** Razorpay webhook (signed, idempotent, amount-checked) so payments are recorded even if the browser is closed; failed payments and refunds notify the customer by email and WhatsApp (when set up).
 - **Operations:** gzip, cache headers, security headers, daily database backup, graceful shutdown, `npm test` (unit and API tests) and a GitHub Actions workflow.
+- **OTP as step 1:** when switched on, every order and enquiry form first asks the visitor to verify their mobile number by SMS (`public/js/otp-gate.js`). The server refuses unverified orders and enquiries.
+- **WhatsApp for wrong details:** a number that passed OTP but sent wrong details gets a WhatsApp message saying what to fix (one per 10 minutes). Only verified numbers are messaged.
+- **IndiaMART:** new IndiaMART leads are pulled into the Enquiries tab every 6 minutes (`INDIAMART_CRM_KEY`), with a Sync now button and status in Settings.
+- **E-visiting card** (`card.html`): save-contact file, call, WhatsApp, directions, share and a QR code. Edit the details in the `CARD` block in `server.js`.
+- **SEO:** a canonical link is added to every page, and four starter articles can be added as drafts from the admin Blogs tab.
 
 See [docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md), [docs/API.md](docs/API.md) and [docs/GO-LIVE.md](docs/GO-LIVE.md). Run the tests with `npm test`.
 

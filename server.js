@@ -99,6 +99,23 @@ app.post('/api/payments/razorpay/webhook', express.raw({ type: '*/*', limit: '20
 const bigJson = express.json({ limit: '1mb' });
 app.use((req, res, next) => (req.method === 'POST' && req.path === '/api/orders' ? bigJson(req, res, next) : next()));
 app.use(express.json({ limit: '200kb' }));
+// Pages get a canonical link added when served (search engines then treat www/http variants as one page)
+const pageCache = new Map();
+app.get(/^\/(?:[\w-]+\.html)?$/, (req, res, next) => {
+  const name = req.path === '/' ? 'index.html' : req.path.slice(1);
+  if (name === '404.html') return next();
+  const file = path.join(__dirname, 'public', name);
+  let st;
+  try { st = fs.statSync(file); } catch (e) { return next(); }
+  let c = pageCache.get(file);
+  if (!c || c.m !== st.mtimeMs) { c = { m: st.mtimeMs, html: fs.readFileSync(file, 'utf8') }; pageCache.set(file, c); }
+  if (/name="robots" content="noindex"/.test(c.html)) return next();
+  let q = '';
+  if (name === 'blog-post.html' && /^\d{1,9}$/.test(String(req.query.id || ''))) q = `?id=${req.query.id}`;
+  else if (name === 'service.html' && req.query.service) q = `?service=${encodeURIComponent(String(req.query.service).slice(0, 100))}`;
+  const url = siteUrl(req) + (name === 'index.html' ? '/' : '/' + name) + q;
+  res.set('Cache-Control', 'no-cache').type('html').send(c.html.replace('</head>', `<link rel="canonical" href="${esc(url)}">\n</head>`));
+});
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, file) => {
     if (/\.html$/i.test(file)) res.set('Cache-Control', 'no-cache');
@@ -161,7 +178,7 @@ async function sendSms(to, body) {
     console.log(`[sms not configured] to ${to}: ${body}`);
     return false;
   }
-  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+  const r = await fetch(`${process.env.TWILIO_API_URL || 'https://api.twilio.com'}/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: 'POST',
     headers: {
       Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
@@ -177,7 +194,7 @@ async function sendSms(to, body) {
 const WA_ON = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
 async function sendWhatsAppTemplate(to, template, params) {
   if (!WA_ON || !to) return false;
-  const r = await fetch(`https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`, {
+  const r = await fetch(`${process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v20.0'}/${process.env.WHATSAPP_PHONE_ID}/messages`, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + process.env.WHATSAPP_TOKEN, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -272,7 +289,24 @@ const otps = new Map(); // phone -> { code, expires, verifiedUntil }
 setInterval(() => {
   const now = Date.now();
   for (const [k, v] of otps) if (Math.max(v.expires || 0, v.tokenExpires || 0) < now) otps.delete(k);
+  if (detailAlertAt.size > 5000) detailAlertAt.clear();
 }, 5 * 60 * 1000).unref();
+
+function verifiedPhone(phone, token) {
+  const rec = phone && otps.get(phone);
+  return !!(token && rec && rec.token === token && rec.tokenExpires > Date.now());
+}
+
+// WhatsApp note for a number that passed OTP but entered wrong details. Only verified numbers are messaged,
+// so nobody can make us message a stranger, and each number gets at most one message every 10 minutes.
+const detailAlertAt = new Map();
+function alertBadDetails(phone, name, reason) {
+  if (!WA_ON) return;
+  if (Date.now() - (detailAlertAt.get(phone) || 0) < 10 * 60 * 1000) return;
+  detailAlertAt.set(phone, Date.now());
+  sendWhatsAppTemplate(phone, process.env.WHATSAPP_TEMPLATE_DETAILS_ERROR || 'details_error', [name || 'there', reason])
+    .catch((e) => console.error('Details alert failed:', e.message));
+}
 
 app.post('/api/otp/send', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
   const phone = normPhone(req.body.phone);
@@ -336,10 +370,14 @@ app.post('/api/enquiry', rateLimit(6, 10 * 60 * 1000), async (req, res) => {
   if (!phone) errors.phone = 'Please enter a valid phone number.';
   if (!d.service) errors.service = 'Please choose a service.';
   if (d.message.length < 5) errors.message = 'Please tell us a little about your query.';
-  if (Object.keys(errors).length) return res.status(400).json({ ok: false, errors });
+  if (Object.keys(errors).length) {
+    // a verified number that submitted wrong details gets a WhatsApp message explaining what to fix
+    if (phone && verifiedPhone(phone, b.otpToken)) alertBadDetails(phone, d.name, Object.values(errors)[0]);
+    return res.status(400).json({ ok: false, errors });
+  }
 
-  const rec = phone && otps.get(phone);
-  const verified = !!(b.otpToken && rec && rec.token === b.otpToken && rec.tokenExpires > Date.now());
+  const verified = verifiedPhone(phone, b.otpToken);
+  if (otpRequired() && !verified) return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
 
   const entry = { id: crypto.randomUUID(), receivedAt: new Date().toISOString(), phoneVerified: verified, ...d, phone };
   try {
@@ -505,10 +543,12 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
   const b = req.body || {};
   if (b.website) return res.json({ ok: true }); // honeypot
   const c = (v, n) => String(v || '').replace(/[\r\n]+/g, ' ').trim().slice(0, n);
+  let badPhone = null, badName = '';
   try {
     const svc = engine.SERVICES.find((s) => s.name === b.service);
     if (!svc) throw new BadInput('Please choose a service.');
     const name = c(b.name, 100), phone = normPhone(c(b.phone, 20)), email = c(b.email, 150).toLowerCase();
+    badPhone = phone; badName = name;
     if (name.length < 2) throw new BadInput('Please enter your name.');
     if (!phone) throw new BadInput('Please enter a valid mobile number.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new BadInput('Please enter a valid email address.');
@@ -556,7 +596,10 @@ app.post('/api/orders', ORDER_RATE, async (req, res) => {
     }
     res.json({ ok: true, id, amount, free: false });
   } catch (e) {
-    if (e instanceof BadInput) return res.status(400).json({ ok: false, error: e.message });
+    if (e instanceof BadInput) {
+      if (badPhone && verifiedPhone(badPhone, b.otpToken)) alertBadDetails(badPhone, badName, e.message);
+      return res.status(400).json({ ok: false, error: e.message });
+    }
     console.error('Could not create order', e);
     res.status(500).json({ ok: false, error: 'Something went wrong. Please try again or call us.' });
   }
@@ -833,6 +876,15 @@ const cleanBlog = (b) => {
 };
 adminRouter.get('/api/blogs', (req, res) => res.json(store.listBlogs(false)));
 adminRouter.get('/api/blog/:id', (req, res) => res.json(store.getBlog(Number(req.params.id)) || null));
+adminRouter.post('/api/blogs/starter', (req, res) => {
+  let added = 0;
+  for (const p of require('./lib/starter-blogs')) {
+    if (store.blogTitleExists(p.title)) continue;
+    store.addBlog({ title: p.title, summary: p.summary, body: p.body, image: '', published: false });
+    added++;
+  }
+  res.json({ ok: true, added });
+});
 adminRouter.post('/api/blog', (req, res) => {
   const b = cleanBlog(req.body || {});
   if (!b.title || !b.body) return res.status(400).json({ ok: false, error: 'Title and content are required.' });
@@ -891,6 +943,60 @@ adminRouter.post('/api/settings', (req, res) => {
   settingsCache.at = 0;
   res.json({ ok: true, settings: store.getSettings() });
 });
+// ---------- IndiaMART leads (optional): pulls new enquiries into the Enquiries tab ----------
+const indiamart = require('./lib/indiamart');
+const IM_GAP_MS = 5 * 60 * 1000 + 15000; // IndiaMART allows one call every 5 minutes
+let imLastCall = 0, imBusy = false;
+async function syncIndiaMart() {
+  const key = process.env.INDIAMART_CRM_KEY;
+  if (!key) return { ok: false, error: 'The IndiaMART key (INDIAMART_CRM_KEY) is not set on the server.' };
+  if (imBusy || Date.now() - imLastCall < IM_GAP_MS) return { ok: false, error: 'IndiaMART allows one sync every 5 minutes. Please wait and try again.' };
+  imBusy = true;
+  imLastCall = Date.now();
+  try {
+    const s = store.getSettings();
+    const end = Date.now();
+    const since = Number(s.indiamart_last_ms) > 0 ? Number(s.indiamart_last_ms) - 2 * 60 * 1000 : end - 24 * 3600 * 1000;
+    const r = await indiamart.fetchLeads(key, since, end);
+    if (!r.ok) {
+      store.setSetting('indiamart_last_error', `${new Date().toISOString()} ${r.error}`);
+      return { ok: false, error: r.error };
+    }
+    const fresh = [];
+    for (const lead of r.leads) {
+      const e = indiamart.toEnquiry(lead);
+      if (e && store.addEnquiryIfNew(e)) fresh.push(e);
+    }
+    store.setSetting('indiamart_last_ms', String(end));
+    store.setSetting('indiamart_last_ok', new Date(end).toISOString());
+    store.setSetting('indiamart_last_error', '');
+    store.setSetting('indiamart_total', String((Number(s.indiamart_total) || 0) + fresh.length));
+    if (fresh.length) {
+      const text = fresh.map((e) => `${e.name}, ${e.phone || e.email}, ${e.service}`).join('\n');
+      const html = '<h3>New IndiaMART leads</h3><ul>' + fresh.map((e) => `<li><b>${esc(e.name)}</b>, ${esc(e.phone || e.email)}<br>${esc(e.service)}<br>${esc(e.message)}</li>`).join('') + '</ul>';
+      Promise.allSettled([
+        sendEmail(`${fresh.length} new IndiaMART lead${fresh.length > 1 ? 's' : ''}`, html, text),
+        sendSms(process.env.ADMIN_PHONE, `${fresh.length} new IndiaMART lead${fresh.length > 1 ? 's' : ''}. Open the admin Enquiries tab.`),
+      ]).then((rs) => rs.forEach((x) => x.status === 'rejected' && console.error('IndiaMART notification failed:', x.reason)));
+    }
+    return { ok: true, fetched: r.leads.length, added: fresh.length };
+  } catch (e) {
+    console.error('IndiaMART sync failed', e);
+    return { ok: false, error: 'IndiaMART sync failed.' };
+  } finally {
+    imBusy = false;
+  }
+}
+if (process.env.INDIAMART_CRM_KEY) {
+  setTimeout(syncIndiaMart, 30 * 1000).unref();
+  setInterval(syncIndiaMart, 6 * 60 * 1000).unref();
+}
+adminRouter.get('/api/indiamart', (req, res) => {
+  const s = store.getSettings();
+  res.json({ configured: !!process.env.INDIAMART_CRM_KEY, lastOk: s.indiamart_last_ok || '', lastError: s.indiamart_last_error || '', total: Number(s.indiamart_total) || 0 });
+});
+adminRouter.post('/api/indiamart/sync', async (req, res) => res.json(await syncIndiaMart()));
+adminRouter.get('/api/settings', (req, res) => res.json(store.getSettings()));
 app.use('/admin', adminRouter);
 
 // ---------- public content ----------
@@ -898,7 +1004,12 @@ function parseYouTubeId(url) {
   const m = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/))([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/.exec(url);
   return m ? m[1] : null;
 }
-app.get('/api/settings', (req, res) => res.json(store.getSettings()));
+// Public settings are a short allow-list; switches, sync state and similar stay admin-only
+const PUBLIC_SETTINGS = ['youtube', 'instagram', 'facebook', 'linkedin', 'show_online', 'ga4_id'];
+app.get('/api/settings', (req, res) => {
+  const s = store.getSettings();
+  res.json(Object.fromEntries(PUBLIC_SETTINGS.filter((k) => s[k] !== undefined).map((k) => [k, s[k]])));
+});
 const siteUrl = (req) => (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
 app.get('/api/videos', (req, res) => res.json(store.listVideos()));
 app.get('/api/blogs', (req, res) => res.json(store.listBlogs(true)));
@@ -908,12 +1019,47 @@ app.get('/api/blogs/:id', (req, res) => {
   res.json(b);
 });
 
+// ---------- e-visiting card ----------
+// Edit these details to change the card, the downloadable contact file (vCard) and the QR code.
+const CARD = {
+  org: 'Nagaika, Nakuli Numerology',
+  title: 'Numerology & Nakshatra Consultancy',
+  tagline: 'Numerology, Nakshatra, Nadi astrology, marriage matching and naming consultations',
+  phone: '+919845610894',
+  whatsapp: '919845610894',
+  email: 'anand@arninvest.in',
+  street: '2, P2, 4th Floor, No. 95, Gold Signature, Mosque Road, Fraser Town',
+  city: 'Bengaluru',
+  region: 'Karnataka',
+  postal: '560005',
+  country: 'India',
+};
+app.get('/api/card', (req, res) => res.json({ ...CARD, url: siteUrl(req) + '/', cardUrl: siteUrl(req) + '/card.html' }));
+app.get('/card.vcf', (req, res) => {
+  const v = (s) => String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+  const lines = [
+    'BEGIN:VCARD', 'VERSION:3.0', `FN:${v(CARD.org)}`, 'N:;;;;', `ORG:${v(CARD.org)}`, `TITLE:${v(CARD.title)}`,
+    `TEL;TYPE=WORK,VOICE:${CARD.phone}`, `EMAIL;TYPE=WORK:${CARD.email}`,
+    `ADR;TYPE=WORK:;;${v(CARD.street)};${v(CARD.city)};${v(CARD.region)};${CARD.postal};${v(CARD.country)}`,
+    `URL:${siteUrl(req)}/`, 'END:VCARD',
+  ];
+  res.type('text/vcard; charset=utf-8').set('Content-Disposition', 'attachment; filename="nagaika-nakuli-numerology.vcf"').send(lines.join('\r\n') + '\r\n');
+});
+app.get('/card-qr.svg', async (req, res) => {
+  try {
+    const svg = await require('qrcode').toString(siteUrl(req) + '/card.html', { type: 'svg', margin: 1, width: 240 });
+    res.type('image/svg+xml').set('Cache-Control', 'public, max-age=86400').send(svg);
+  } catch (e) {
+    res.status(500).end();
+  }
+});
+
 app.get('/robots.txt', (req, res) => {
   res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /\n\nSitemap: ${siteUrl(req)}/sitemap.xml\n`);
 });
 app.get('/sitemap.xml', (req, res) => {
   const base = siteUrl(req);
-  const pages = ['', 'about.html', 'services.html', 'nakshatra.html', 'tools.html', 'hora.html', 'marriage.html', 'nadi.html', 'blog.html', 'videos.html', 'gallery.html', 'why-choose-us.html', 'faq.html', 'pricing.html', 'contact.html', 'payment.html', 'privacy.html', 'terms.html', 'refund-policy.html', 'disclaimer.html', 'cookies.html'];
+  const pages = ['', 'about.html', 'services.html', 'nakshatra.html', 'tools.html', 'hora.html', 'marriage.html', 'nadi.html', 'blog.html', 'videos.html', 'gallery.html', 'why-choose-us.html', 'faq.html', 'pricing.html', 'card.html', 'contact.html', 'payment.html', 'privacy.html', 'terms.html', 'refund-policy.html', 'disclaimer.html', 'cookies.html'];
   const urls = pages.map((p) => ({ loc: `${base}/${p}` }));
   for (const b of store.listBlogs(true)) urls.push({ loc: `${base}/blog-post.html?id=${b.id}`, lastmod: String(b.created_at).slice(0, 10) });
   res.type('application/xml').send(

@@ -16,7 +16,7 @@ Open `/admin` and sign in with `ADMIN_USER` and `ADMIN_PASSWORD`. If `ADMIN_TOTP
 - **Accept online bookings and payments:** turn off to pause new orders. Payments already in progress still complete.
 - **Maintenance mode:** visitors see a "back soon" page. This admin area stays available.
 - **Show "N online now" in the footer:** off by default.
-- **Require mobile OTP before an order:** customers enter an SMS code first. It only takes effect once SMS (Twilio) is set up on the server, so a missing provider cannot lock customers out.
+- **Require mobile OTP before an order:** every order and enquiry form first asks for the mobile number and an SMS code. It only takes effect once SMS (Twilio) is set up on the server, so a missing provider cannot lock customers out. A number that passes OTP but sends wrong details also gets a WhatsApp message (once per 10 minutes) when WhatsApp is set up.
 
 ## Refunds
 Open the order and press **Refund**. For online payments the refund is sent to Razorpay and goes back to the customer's original payment method in 5 to 7 working days; for demo payments it is only recorded. The customer is told by email (and WhatsApp when set up). An order can be refunded once.
@@ -26,6 +26,15 @@ Settings > Data protection: enter the person's mobile number and/or email. Enqui
 
 ## Backups
 The server saves a copy of the database every day in `DATA_DIR/backups` (7 kept). On hosts with a temporary disk these are lost on redeploy, so also use **Settings > Download backup** regularly. The file holds customer data: keep it private.
+
+## IndiaMART leads
+Set `INDIAMART_CRM_KEY` (seller.indiamart.com > Lead Manager > Import/Export Leads > Pull API; needs a paid IndiaMART seller account). New leads are copied into the Enquiries tab every 6 minutes with the source "indiamart" and you get an email and SMS. Settings > IndiaMART leads shows the status and has **Sync now** (IndiaMART allows one call per 5 minutes). The key expires if it is unused for 7 days.
+
+## Starter articles
+Blogs tab > **Add 4 starter articles as drafts**. Read and edit them, then tick Published. They are added only once.
+
+## Visiting card
+`/card.html` shows the e-visiting card with a QR code and a save-contact file. To change the details, edit the `CARD` block in `server.js`.
 
 ## Google Analytics (optional)
 Paste a GA4 measurement ID. The cookie notice then asks visitors to Accept or Decline, and tracking starts only after Accept.

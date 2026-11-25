@@ -7,7 +7,7 @@ JSON over HTTPS. Errors look like `{ "ok": false, "error": "message" }`. Bad req
 |---|---|
 | `GET /healthz` | Health check (also checks the database). |
 | `GET /api/config` | Payment mode, Razorpay key id, whether OTP is required on orders. |
-| `GET /api/settings` | Social links and public switches. Never contains secrets. |
+| `GET /api/settings` | Social links, analytics ID and the online-count switch only (an allow-list). Never contains secrets or admin state. |
 | `POST /api/otp/send` `{phone}` / `POST /api/otp/verify` `{phone, code}` | SMS code; verify returns a 30-minute `token`. |
 | `POST /api/enquiry`, `/api/lead`, `/api/horoscope` | Contact and lead forms. |
 | `POST /api/orders` | Create an order. Body: `service, name, phone, email`, service details, and `otpToken` when OTP is required. Returns `{ id, amount, free }`. Fixed fees are enforced on the server. 503 when bookings are paused. |
@@ -18,11 +18,12 @@ JSON over HTTPS. Errors look like `{ "ok": false, "error": "message" }`. Bad req
 | `GET /api/orders/:id`, `/api/orders/:id/receipt.pdf` | A customer's own order and receipt; the id is an unguessable UUID. |
 | `POST /api/presence` `{id, page, view}` | Anonymous visitor heartbeat. 204. |
 | `GET /api/online` | `{show, online}`; hidden unless switched on. |
+| `GET /api/card`, `/card.vcf`, `/card-qr.svg` | E-visiting card data, contact file and QR code. |
 | `GET /api/blogs`, `/api/blogs/:id`, `/api/videos` | Content. |
 | `GET /robots.txt`, `/sitemap.xml` | SEO. |
 
 ## Admin (`/admin/...`, needs the signed-in session cookie)
-`GET /admin/api/data`, `GET /admin/api/live`, `GET /admin/api/audit`, `POST /admin/api/settings`, `POST /admin/api/orders/:id` (status, notes), `POST /admin/api/orders/:id/refund` `{amount?}`, `POST /admin/api/orders/:id/email`, `DELETE /admin/api/orders/:id`, `POST /admin/api/erase` `{phone?, email?}`, blog and video CRUD, `GET /admin/export.csv`, `GET /admin/backup.db`, `GET /admin/orders/:id.pdf`.
+`GET /admin/api/data`, `GET /admin/api/settings`, `GET /admin/api/live`, `GET /admin/api/audit`, `GET /admin/api/indiamart`, `POST /admin/api/indiamart/sync`, `POST /admin/api/blogs/starter`, `POST /admin/api/settings`, `POST /admin/api/orders/:id` (status, notes), `POST /admin/api/orders/:id/refund` `{amount?}`, `POST /admin/api/orders/:id/email`, `DELETE /admin/api/orders/:id`, `POST /admin/api/erase` `{phone?, email?}`, blog and video CRUD, `GET /admin/export.csv`, `GET /admin/backup.db`, `GET /admin/orders/:id.pdf`.
 Every change made here is written to the audit log.
 
 ## Limits

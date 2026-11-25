@@ -257,6 +257,8 @@ function render() {
       })() + '</div>' +
       '<div class="panel" style="max-width:640px;margin-top:14px"><b>Google Analytics (optional)</b><p class="note">Paste a GA4 measurement ID (G-XXXXXXXXXX). Visitors are asked first and tracking only starts if they accept. Leave blank to keep analytics off.</p>' +
       '<input id="st-ga4" value="' + esc(s.ga4_id) + '" placeholder="G-XXXXXXXXXX"><button class="btn" onclick="saveAnalytics()">Save</button></div>' +
+      '<div class="panel" style="max-width:640px;margin-top:14px"><b>Google Search Console (optional)</b><p class="note">Proves to Google that you own the site, so you can see search traffic and submit the sitemap. In Search Console choose &ldquo;HTML tag&rdquo; and paste the code (or the whole meta tag) here.</p>' +
+      '<input id="st-gsc" value="' + esc(s.gsc_token) + '" placeholder="verification code"><button class="btn" onclick="saveGsc()">Save</button></div>' +
       '<div class="panel" style="max-width:640px;margin-top:14px"><b>Data protection</b><p class="note">Erase one person\'s data on request (DPDP Act). Enquiries are deleted; orders are anonymised but the amount and payment reference stay for accounts.</p>' +
       '<label>Mobile number</label><input id="er-phone"><label>Email</label><input id="er-email"><button class="btn red" onclick="eraseP()">Erase this person\'s data</button></div>' +
       '<div class="panel" style="max-width:640px;margin-top:14px"><b>Backup</b><p class="note">Download a copy of the whole database. It contains customer data, so store it safely. Download one regularly if the host\'s disk is temporary.</p><a class="btn" href="/admin/backup.db">Download backup</a></div>';
@@ -337,6 +339,10 @@ function eraseP() {
   if (!confirm('Erase all data held about this person? Enquiries are deleted and orders are anonymised. This cannot be undone.')) return;
   api('/admin/api/erase', 'POST', { phone: ph, email: em })
     .then(function (d) { if (!d.ok) return flash(d.error || 'Could not erase.', true); load().then(function () { flash('Erased ' + d.enquiries + ' enquiries and anonymised ' + d.orders + ' orders.'); }); });
+}
+function saveGsc() {
+  api('/admin/api/settings', 'POST', { gsc_token: val('st-gsc') })
+    .then(function (d) { if (!d.ok) return flash(d.error || 'Could not save.', true); load().then(function () { flash('Search Console code saved. It is now in the head of every page.'); }); });
 }
 function saveAnalytics() {
   api('/admin/api/settings', 'POST', { ga4_id: val('st-ga4') })

@@ -114,7 +114,10 @@ app.get(/^\/(?:[\w-]+\.html)?$/, (req, res, next) => {
   if (name === 'blog-post.html' && /^\d{1,9}$/.test(String(req.query.id || ''))) q = `?id=${req.query.id}`;
   else if (name === 'service.html' && req.query.service) q = `?service=${encodeURIComponent(String(req.query.service).slice(0, 100))}`;
   const url = siteUrl(req) + (name === 'index.html' ? '/' : '/' + name) + q;
-  res.set('Cache-Control', 'no-cache').type('html').send(c.html.replace('</head>', `<link rel="canonical" href="${esc(url)}">\n</head>`));
+  // optional Google Search Console ownership tag, set in the admin Settings tab
+  const gsc = String(liveSettings().gsc_token || '');
+  const gscTag = /^[A-Za-z0-9_-]{20,100}$/.test(gsc) ? `<meta name="google-site-verification" content="${gsc}">\n` : '';
+  res.set('Cache-Control', 'no-cache').type('html').send(c.html.replace('</head>', `${gscTag}<link rel="canonical" href="${esc(url)}">\n</head>`));
 });
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, file) => {
@@ -1104,6 +1107,13 @@ adminRouter.post('/api/settings', (req, res) => {
   }
   for (const k of TOGGLE_KEYS) {
     if (req.body && k in req.body) store.setSetting(k, req.body[k] === 'on' ? 'on' : 'off');
+  }
+  if (req.body && 'gsc_token' in req.body) {
+    let t = String(req.body.gsc_token || '').trim();
+    const m = /content=["']([^"']+)["']/.exec(t); // accept the whole meta tag as Google shows it
+    if (m) t = m[1];
+    if (t && !/^[A-Za-z0-9_-]{20,100}$/.test(t)) return res.status(400).json({ ok: false, error: 'That does not look like a Search Console verification code.' });
+    store.setSetting('gsc_token', t);
   }
   if (req.body && 'ga4_id' in req.body) {
     const g = String(req.body.ga4_id || '').trim().toUpperCase();

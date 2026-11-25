@@ -66,6 +66,15 @@ test('site search finds pages, services, Nakshatras and synonyms', async () => {
   assert.match(await (await fetch(BASE + '/search.html')).text(), /name="robots" content="noindex"/);
 });
 
+test('Search Console code from the admin is added to every page', async () => {
+  const code = 'abcDEF123456789_-abcDEF123456789';
+  assert.strictEqual((await fetch(BASE + '/admin/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', ...AUTH }, body: JSON.stringify({ gsc_token: 'bad code!' }) })).status, 400);
+  const wrapped = `<meta name="google-site-verification" content="${code}" />`;
+  assert.strictEqual((await fetch(BASE + '/admin/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', ...AUTH }, body: JSON.stringify({ gsc_token: wrapped }) })).status, 200);
+  const html = await (await fetch(BASE + '/about.html')).text();
+  assert.ok(html.includes(`<meta name="google-site-verification" content="${code}">`));
+});
+
 test('starter articles are added once, as unpublished drafts', async () => {
   const add = () => fetch(BASE + '/admin/api/blogs/starter', { method: 'POST', headers: AUTH }).then((r) => r.json());
   assert.strictEqual((await add()).added, 4);

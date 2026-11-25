@@ -62,9 +62,7 @@ test.after(() => {
   setTimeout(() => fs.rmSync(DATA_DIR, { recursive: true, force: true }), 500).unref();
 });
 
-test('OTP is the first step: orders and enquiries are refused until the number is verified', async () => {
-  assert.strictEqual((await (await fetch(BASE + '/api/config')).json()).otpRequired, false);
-  await adminPost('/admin/api/settings', { otp_orders: 'on' });
+test('OTP is mandatory: orders, enquiries, call-backs and horoscope forms are refused until the number is verified', async () => {
   assert.strictEqual((await (await fetch(BASE + '/api/config')).json()).otpRequired, true);
 
   const order = { service: 'Job Guidance', amount: 500, name: 'Otp User', phone: '9876543210', email: 'otp@example.com', message: 'hello' };
@@ -73,6 +71,9 @@ test('OTP is the first step: orders and enquiries are refused until the number i
   assert.strictEqual((await blocked.json()).needOtp, true);
   const enq = { name: 'Otp User', email: 'otp@example.com', phone: '9876543210', service: 'Job Guidance', message: 'hello there' };
   assert.strictEqual((await fetch(BASE + '/api/enquiry', json(enq))).status, 403);
+  assert.strictEqual((await fetch(BASE + '/api/lead', json({ name: 'Otp User', phone: '9876543210', topic: 't' }))).status, 403);
+  const hs = { name: 'Otp User', phone: '9876543210', gender: 'Male', dob: '1990-03-14', tob: '10:00', pob: 'Pune', summary: 's' };
+  assert.strictEqual((await fetch(BASE + '/api/horoscope', json(hs))).status, 403);
 
   assert.strictEqual((await fetch(BASE + '/api/otp/send', json({ phone: '9876543210' }))).status, 200);
   const code = /(\d{6})/.exec(sms[sms.length - 1])[1];
@@ -83,19 +84,29 @@ test('OTP is the first step: orders and enquiries are refused until the number i
   const ok = await (await fetch(BASE + '/api/orders', json({ ...order, otpToken: token }))).json();
   assert.ok(ok.ok, JSON.stringify(ok));
   assert.strictEqual((await fetch(BASE + '/api/enquiry', json({ ...enq, otpToken: token }))).status, 200);
+  assert.strictEqual((await fetch(BASE + '/api/lead', json({ name: 'Otp User', phone: '9876543210', topic: 't', otpToken: token }))).status, 200);
+  assert.strictEqual((await fetch(BASE + '/api/horoscope', json({ ...hs, otpToken: token }))).status, 200);
   // a token is tied to its number
   assert.strictEqual((await fetch(BASE + '/api/orders', json({ ...order, phone: '9123456780', otpToken: token }))).status, 403);
 
-  // verified number + wrong details: the user is told on WhatsApp, once
+  // verified number + wrong details: every time, the user is told on WhatsApp what to fix
   const bad = await fetch(BASE + '/api/orders', json({ ...order, email: 'not-an-email', otpToken: token }));
   assert.strictEqual(bad.status, 400);
   await wait(300);
   assert.strictEqual(whatsapp.length, 1);
   assert.strictEqual(whatsapp[0].template.name, 'details_error');
   assert.strictEqual(whatsapp[0].to, '919876543210');
-  await fetch(BASE + '/api/orders', json({ ...order, email: 'still-bad', otpToken: token }));
-  await wait(200);
-  assert.strictEqual(whatsapp.length, 1);
+  await fetch(BASE + '/api/orders', json({ ...order, name: '', otpToken: token }));
+  await wait(300);
+  assert.strictEqual(whatsapp.length, 2);
+  // wrong details in the enquiry form are reported too
+  await fetch(BASE + '/api/enquiry', json({ ...enq, message: 'x', otpToken: token }));
+  await wait(300);
+  assert.strictEqual(whatsapp.length, 3);
+  // at most 5 per hour per number
+  for (let i = 0; i < 5; i++) await fetch(BASE + '/api/orders', json({ ...order, email: 'bad' + i, otpToken: token }));
+  await wait(400);
+  assert.strictEqual(whatsapp.length, 5);
 });
 
 test('an unverified number never gets a WhatsApp message about wrong details', async () => {

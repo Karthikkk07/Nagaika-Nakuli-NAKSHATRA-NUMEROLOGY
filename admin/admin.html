@@ -94,7 +94,7 @@ td select,td input{width:100%;padding:6px 8px;border:1px solid #d9c690;border-ra
   <div class="view" id="view"></div>
 </main>
 <script>
-var D = { enquiries: [], payments: [], chats: [], orders: [], blogs: [], videos: [], settings: {}, mailReady: false }, tab = 'orders', editing = null, flashMsg = null, fStatus = 'all', fQ = '', oStatus = 'all', oQ = '', composing = null;
+var D = { enquiries: [], payments: [], chats: [], orders: [], blogs: [], videos: [], settings: {}, mailReady: false }, tab = 'orders', editing = null, flashMsg = null, fStatus = 'all', fSrc = 'all', fQ = '', oStatus = 'all', oQ = '', composing = null;
 var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
 var fmt = function (d) { return new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
 function api(url, method, body) {
@@ -111,7 +111,7 @@ function logout() { fetch('/admin/logout', { method: 'POST' }).then(function () 
 function enqRows() {
   var q = fQ.toLowerCase();
   var list = D.enquiries.filter(function (e) {
-    return (fStatus === 'all' || e.status === fStatus) && (!q || [e.name, e.email, e.phone, e.service, e.message].join(' ').toLowerCase().indexOf(q) > -1);
+    return (fStatus === 'all' || e.status === fStatus) && (fSrc === 'all' || (e.source || 'contact') === fSrc) && (!q || [e.name, e.email, e.phone, e.service, e.message].join(' ').toLowerCase().indexOf(q) > -1);
   });
   if (!list.length) return '<div class="empty">No enquiries match.</div>';
   return '<div class="wrap"><table class="stk"><tr><th>Received</th><th>Name</th><th>Contact</th><th>Service</th><th>Details</th><th>Status / notes</th><th></th></tr>' +
@@ -184,7 +184,8 @@ function render() {
       '<div id="ord-list">' + orderCards() + '</div>';
   } else if (tab === 'enq') {
     h = '<div class="bar"><input id="f-q" placeholder="Search name, phone, email, service or message" value="' + esc(fQ) + '">' +
-      '<select id="f-s">' + [['all', 'All statuses'], ['new', 'New'], ['contacted', 'Contacted'], ['done', 'Done']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === fStatus ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
+      '<select id="f-s">' + [['all', 'All statuses'], ['new', 'New'], ['contacted', 'Contacted'], ['done', 'Done']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === fStatus ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+      '<select id="f-src">' + [['all', 'All sources'], ['indiamart', 'IndiaMART'], ['contact', 'Contact form'], ['horoscope', 'Horoscope form'], ['lead', 'Call-back requests']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === fSrc ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
       '<div id="enq-table">' + enqRows() + '</div>';
   } else if (tab === 'pay') {
     h = D.payments.length ? '<div class="wrap"><table class="stk"><tr><th>Date</th><th>Name</th><th>Service</th><th>Amount</th><th>Order</th><th>Payment</th><th>Status</th></tr>' +
@@ -244,8 +245,7 @@ function render() {
       '<p class="note">Shows visitors a &ldquo;back soon&rdquo; page. This admin dashboard stays available to you.</p>' +
       '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-online" ' + (s.show_online === 'on' ? 'checked' : '') + '> Show &ldquo;N online now&rdquo; in the website footer</label>' +
       '<p class="note">Off by default. The live count is always visible to you in the Live visitors tab.</p>' +
-      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="sw-otp" ' + (s.otp_orders === 'on' ? 'checked' : '') + '> Require mobile OTP before an order</label>' +
-      '<p class="note">Customers must enter an SMS code before paying. Only takes effect once SMS (Twilio) is set up on the server; until then it is ignored so no one is locked out.</p>' +
+      '<p class="note"><b>Mobile OTP is mandatory</b> on every form that collects a phone number, and switches on by itself once SMS (Twilio) is set up on the server.</p>' +
       '<button class="btn" onclick="saveSwitches()">Save switches</button></div>' +
       '<div class="panel" style="max-width:640px;margin-top:14px"><b>IndiaMART leads</b>' + (function () {
         var im = D.indiamart || {};
@@ -272,6 +272,8 @@ function render() {
   if (os) os.onchange = function () { oStatus = os.value; document.getElementById('ord-list').innerHTML = orderCards(); };
   if (q) q.oninput = function () { fQ = q.value; document.getElementById('enq-table').innerHTML = enqRows(); };
   if (s2) s2.onchange = function () { fStatus = s2.value; document.getElementById('enq-table').innerHTML = enqRows(); };
+  var s3 = document.getElementById('f-src');
+  if (s3) s3.onchange = function () { fSrc = s3.value; document.getElementById('enq-table').innerHTML = enqRows(); };
 }
 function val(id) { return document.getElementById(id).value; }
 function saveBlog() {
@@ -342,7 +344,7 @@ function saveAnalytics() {
 function saveSwitches() {
   var maint = document.getElementById('sw-maint').checked;
   if (maint && !confirm('Turn on maintenance mode? Visitors will see a "back soon" page until you turn it off.')) return;
-  api('/admin/api/settings', 'POST', { orders_on: document.getElementById('sw-orders').checked ? 'on' : 'off', maintenance_mode: maint ? 'on' : 'off', show_online: document.getElementById('sw-online').checked ? 'on' : 'off', otp_orders: document.getElementById('sw-otp').checked ? 'on' : 'off' })
+  api('/admin/api/settings', 'POST', { orders_on: document.getElementById('sw-orders').checked ? 'on' : 'off', maintenance_mode: maint ? 'on' : 'off', show_online: document.getElementById('sw-online').checked ? 'on' : 'off' })
     .then(function (d) { if (!d.ok) return flash(d.error || 'Could not save.', true); load().then(function () { flash('Switches saved.'); }); });
 }
 function saveO(id) {

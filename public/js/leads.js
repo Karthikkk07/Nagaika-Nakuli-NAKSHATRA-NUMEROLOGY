@@ -21,13 +21,16 @@
       e.preventDefault();
       btn.disabled = true; msg.textContent = '';
       var f = new FormData(form);
-      fetch('/api/lead', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: f.get('name'), phone: f.get('phone'), website: f.get('website'), topic: ctx.topic, dob: ctx.dob || '' }),
+      var verify = window.OTP_GATE ? OTP_GATE.ensure(String(f.get('phone'))) : Promise.resolve('');
+      verify.then(function (otpToken) {
+        return fetch('/api/lead', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: f.get('name'), phone: f.get('phone'), website: f.get('website'), topic: ctx.topic, dob: ctx.dob || '', otpToken: otpToken }),
+        });
       }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.ok) { form.innerHTML = '<p class="lead-ok"><b>Thank you.</b> We will call you soon. You can also chat on WhatsApp above.</p>'; return; }
         msg.textContent = d.error || 'Please check your details.'; btn.disabled = false;
-      }).catch(function () { msg.textContent = 'Could not send. Please use WhatsApp above.'; btn.disabled = false; });
+      }).catch(function () { msg.textContent = 'Please verify your mobile number and try again, or use WhatsApp above.'; btn.disabled = false; });
     });
   }
 

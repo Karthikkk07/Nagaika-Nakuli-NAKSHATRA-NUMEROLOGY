@@ -272,8 +272,9 @@ const RZP_ON = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
 const DEMO_PAY = !RZP_ON && (process.env.DEMO_PAYMENTS === 'true' || process.env.NODE_ENV !== 'production');
 
 const SMS_ON = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM);
-// OTP on order forms is enforced only when the admin switch is on AND SMS is actually set up, so a missing provider cannot lock customers out
-const otpRequired = () => flagOn('otp_orders', 'off') && SMS_ON;
+// Mobile OTP is mandatory on every form that collects a phone number. It switches on by itself once SMS is set up
+// (it cannot work without SMS). OTP_REQUIRED=false is an emergency switch-off, for example during an SMS outage.
+const otpRequired = () => SMS_ON && process.env.OTP_REQUIRED !== 'false';
 
 app.get('/api/config', (req, res) => {
   res.json({
@@ -297,13 +298,16 @@ function verifiedPhone(phone, token) {
   return !!(token && rec && rec.token === token && rec.tokenExpires > Date.now());
 }
 
-// WhatsApp note for a number that passed OTP but entered wrong details. Only verified numbers are messaged,
-// so nobody can make us message a stranger, and each number gets at most one message every 10 minutes.
+// WhatsApp note for every number that passed OTP but sent wrong details. Only verified numbers are messaged,
+// so nobody can make us message a stranger; a cap of 5 per hour per number stops a loop from flooding someone.
 const detailAlertAt = new Map();
 function alertBadDetails(phone, name, reason) {
   if (!WA_ON) return;
-  if (Date.now() - (detailAlertAt.get(phone) || 0) < 10 * 60 * 1000) return;
-  detailAlertAt.set(phone, Date.now());
+  const now = Date.now();
+  const recent = (detailAlertAt.get(phone) || []).filter((t) => now - t < 60 * 60 * 1000);
+  if (recent.length >= 5) return;
+  recent.push(now);
+  detailAlertAt.set(phone, recent);
   sendWhatsAppTemplate(phone, process.env.WHATSAPP_TEMPLATE_DETAILS_ERROR || 'details_error', [name || 'there', reason])
     .catch((e) => console.error('Details alert failed:', e.message));
 }
@@ -412,10 +416,12 @@ app.post('/api/lead', rateLimit(5, 10 * 60 * 1000), async (req, res) => {
   const name = clean(b.name, 100);
   const phone = normPhone(clean(b.phone, 20));
   if (name.length < 2 || !phone) return res.status(400).json({ ok: false, error: 'Please enter your name and a valid mobile number.' });
+  const verified = verifiedPhone(phone, b.otpToken);
+  if (otpRequired() && !verified) return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
 
   const topic = clean(b.topic, 300);
   const entry = {
-    id: crypto.randomUUID(), receivedAt: new Date().toISOString(), phoneVerified: false, name, email: '', phone,
+    id: crypto.randomUUID(), receivedAt: new Date().toISOString(), phoneVerified: verified, name, email: '', phone,
     service: 'Free Result Follow-up', mode: 'Phone call', dob: clean(b.dob, 20), date: '',
     message: 'Call-back requested from the website. ' + (topic || 'No result details.'), source: 'lead',
   };
@@ -445,12 +451,18 @@ app.post('/api/horoscope', rateLimit(8, 10 * 60 * 1000), async (req, res) => {
   const gender = ['Male', 'Female'].includes(b.gender) ? b.gender : '';
   const dob = /^\d{4}-\d{2}-\d{2}$/.test(String(b.dob)) ? String(b.dob) : '';
   if (name.length < 2 || !phone) return res.status(400).json({ ok: false, error: 'Please enter your name and a valid mobile number.' });
-  if (!gender || !dob) return res.status(400).json({ ok: false, error: 'Please choose Male or Female and enter your date of birth.' });
+  const verified = verifiedPhone(phone, b.otpToken);
+  if (otpRequired() && !verified) return res.status(403).json({ ok: false, needOtp: true, error: 'Please verify your mobile number with the code we send you.' });
+  if (!gender || !dob) {
+    const why = 'Please choose Male or Female and enter your date of birth.';
+    if (verified) alertBadDetails(phone, name, why);
+    return res.status(400).json({ ok: false, error: why });
+  }
 
   const tob = /^\d{2}:\d{2}$/.test(String(b.tob)) ? String(b.tob) : 'unknown';
   const message = `Horoscope in Numerology form. Gender: ${gender}. Time of birth: ${tob}${b.tobUnknown ? ' (not known, noon used)' : ''}. Place of birth: ${clean(b.pob, 100) || '-'}. ${clean(b.summary, 400)}`;
   const entry = {
-    id: crypto.randomUUID(), receivedAt: new Date().toISOString(), phoneVerified: false, name, email: '', phone,
+    id: crypto.randomUUID(), receivedAt: new Date().toISOString(), phoneVerified: verified, name, email: '', phone,
     service: 'Horoscope in Numerology', mode: 'Phone call', dob, date: '', message, source: 'horoscope',
   };
   try {
@@ -918,7 +930,7 @@ adminRouter.delete('/api/video/:id', (req, res) => {
 
 // site settings (social links and switches)
 const SETTING_KEYS = ['youtube', 'instagram', 'linkedin', 'facebook'];
-const TOGGLE_KEYS = ['maintenance_mode', 'orders_on', 'show_online', 'otp_orders'];
+const TOGGLE_KEYS = ['maintenance_mode', 'orders_on', 'show_online'];
 adminRouter.get('/api/live', (req, res) => {
   res.set('Cache-Control', 'no-store');
   store.saveDailyStats(presence.totals());

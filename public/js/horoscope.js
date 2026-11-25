@@ -81,6 +81,11 @@
     if (p.length !== 3 || !p[0] || p[0] < 1900 || new Date(dob) > new Date()) { msg.textContent = 'Please enter a valid date of birth.'; return; }
     if (t.length !== 2 || isNaN(t[0])) { msg.textContent = 'Please enter your time of birth, or tick "I do not know".'; return; }
 
+    var verify = window.OTP_GATE ? OTP_GATE.ensure(String(f.get('phone'))) : Promise.resolve('');
+    btn.disabled = true;
+    verify.then(function (otpToken) { run(otpToken); }, function () { btn.disabled = false; msg.textContent = 'Please verify your mobile number to see your result.'; msg.className = 'hs-msg bad'; });
+
+    function run(otpToken) {
     var n = NAKSHATRA.birth(p[0], p[1] - 1, p[2], t[0], t[1]), nk = NAKSHATRA.info(n.idx);
     var rashi = Math.floor((n.idx * 4 + n.pada - 1) / 9), birth = NUMEROLOGY.birthNumber(p[2]), life = NUMEROLOGY.lifePath(p[0], p[1], p[2]);
     var nn = NUMEROLOGY.nameNumbers(name), destiny = nn.total ? nn.destiny : 0;
@@ -95,11 +100,12 @@
     btn.disabled = true;
     fetch('/api/horoscope', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, phone: f.get('phone'), gender: gender, dob: dob, tob: unk ? '' : time, tobUnknown: unk, pob: pob, website: f.get('website'), summary: summary }),
+      body: JSON.stringify({ name: name, phone: f.get('phone'), gender: gender, dob: dob, tob: unk ? '' : time, tobUnknown: unk, pob: pob, website: f.get('website'), summary: summary, otpToken: otpToken }),
     }).then(function (r) { return r.json(); }).then(function (res) {
       msg.textContent = res.ok ? '' : (res.error || '');
       msg.className = res.ok ? 'hs-msg' : 'hs-msg bad';
       if (res.ok) { msg.textContent = 'Your result is below. We have saved your details and may call you about a personal reading.'; msg.className = 'hs-msg ok'; }
     }).catch(function () {}).then(function () { btn.disabled = false; });
+    }
   });
 })();

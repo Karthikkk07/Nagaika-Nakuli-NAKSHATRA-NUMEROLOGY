@@ -16,7 +16,7 @@ Open `/admin` and sign in with `ADMIN_USER` and `ADMIN_PASSWORD`. If `ADMIN_TOTP
 - **Accept online bookings and payments:** turn off to pause new orders. Payments already in progress still complete.
 - **Maintenance mode:** visitors see a "back soon" page. This admin area stays available.
 - **Show "N online now" in the footer:** off by default.
-- **Require mobile OTP before an order:** every order and enquiry form first asks for the mobile number and an SMS code. It only takes effect once SMS (Twilio) is set up on the server, so a missing provider cannot lock customers out. A number that passes OTP but sends wrong details also gets a WhatsApp message (once per 10 minutes) when WhatsApp is set up.
+- **Mobile OTP is mandatory** on every form that collects a phone number (orders, enquiries, call-backs, horoscope). It switches on by itself once SMS (Twilio) is set up, because it cannot work without SMS. For an emergency such as an SMS outage, set `OTP_REQUIRED=false` on the server. Every number that passed OTP and then sent wrong details gets a WhatsApp message saying what to fix (when WhatsApp is set up; at most 5 per hour per number).
 
 ## Refunds
 Open the order and press **Refund**. For online payments the refund is sent to Razorpay and goes back to the customer's original payment method in 5 to 7 working days; for demo payments it is only recorded. The customer is told by email (and WhatsApp when set up). An order can be refunded once.

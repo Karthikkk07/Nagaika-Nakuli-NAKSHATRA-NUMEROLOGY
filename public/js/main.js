@@ -71,7 +71,7 @@
     ['Contact', 'contact.html'], ['Pay Online', 'payment.html'],
   ];
   var SUB = [['Marriage Matching', 'marriage.html'], ['Nadi Astrology', 'nadi.html'], ['Horoscope in Numerology', 'index.html#horoscope'], ['Find Your Nakshatra', 'nakshatra.html#find'], ['Today\u2019s Nakshatra', 'nakshatra.html#today'], ['Hora Kala Chakram', 'hora.html'], ['The 27 Nakshatras', 'nakshatra.html#list'], ['Life Path Calculator', 'tools.html'], ['Name Number', 'tools.html?tool=name'], ['Mobile Number', 'tools.html?tool=mobile'],
-    ['Vehicle Number', 'tools.html?tool=vehicle'], ['Free Consultation', 'contact.html?service=Free%20Consultation%20for%20People%20in%20Need']];
+    ['Vehicle Number', 'tools.html?tool=vehicle'], ['Visiting Card', 'card.html'], ['Free Consultation', 'contact.html?service=Free%20Consultation%20for%20People%20in%20Need']];
 
   function isActive(item) {
     var all = [item[1]].concat((item[2] || []).map(function (c) { return c[1]; }));
@@ -96,7 +96,7 @@
   var footer = '<footer class="site"><div class="links">' +
     MENU.map(function (m) { return '<a href="' + m[1] + '">' + m[0] + '</a>'; }).join(' ') + ' ' +
     '<a href="tools.html?tool=name">Name Number</a> <a href="nakshatra.html#list">The 27 Nakshatras</a> <a href="nakshatra.html#today">Today&rsquo;s Nakshatra</a> <a href="services.html">Naming Consultation</a></div>' +
-    '<div class="links legal-links"><a href="pricing.html">Pricing</a> <a href="faq.html">FAQ</a> <a href="privacy.html">Privacy Policy</a> <a href="terms.html">Terms of Service</a> <a href="refund-policy.html">Refund &amp; Cancellation</a> <a href="disclaimer.html">Disclaimer</a> <a href="cookies.html">Cookie Policy</a></div>' +
+    '<div class="links legal-links"><a href="card.html">Visiting Card</a> <a href="pricing.html">Pricing</a> <a href="faq.html">FAQ</a> <a href="privacy.html">Privacy Policy</a> <a href="terms.html">Terms of Service</a> <a href="refund-policy.html">Refund &amp; Cancellation</a> <a href="disclaimer.html">Disclaimer</a> <a href="cookies.html">Cookie Policy</a></div>' +
     '<div class="cols"><div><b class="notranslate" translate="no">' + SITE.brand + '</b><br>Numerology &amp; Nakshatra Consultancy<br><span class="muted">Date of Birth Analysis | Personal Numerology | Nakshatra Study | Career, Education &amp; Future Guidance</span></div>' +
     '<div><b>Contact</b><br>' + SITE.address + '<br>Phone: <a href="tel:+91' + SITE.phone + '">' + SITE.phone + '</a><br>Email: <a href="mailto:' + SITE.email + '">' + SITE.email + '</a></div>' +
     '<div><b>Follow us</b><div class="social" style="margin-top:8px">' + socialHtml + '</div><p style="margin-top:14px">&copy; ' + new Date().getFullYear() + ' ' + SITE.brand + '</p></div></div>' +

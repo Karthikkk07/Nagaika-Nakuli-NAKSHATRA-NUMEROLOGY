@@ -7,7 +7,7 @@
 - [ ] **Persistent disk** mounted at `DATA_DIR` (a temporary disk loses all orders on redeploy). Download a backup once a week as well.
 - [ ] `ADMIN_PASSWORD` set to a long unique value; two-factor on (`node scripts/totp-secret.js`).
 - [ ] SMTP set (order emails, receipts) and `ADMIN_EMAIL` correct. Send a test order.
-- [ ] SMS (Twilio, with India DLT registration) if OTP is wanted; then switch on "Require mobile OTP".
+- [ ] SMS (Twilio, with India DLT registration). OTP is mandatory on all forms and switches on automatically once SMS is set up. Test it on every form first.
 - [ ] WhatsApp Business API and approved templates `payment_failed` (2 variables: name, service), `refund_processed` (3: name, amount, service) and `details_error` (2: name, what to fix), if wanted.
 - [ ] IndiaMART Pull API key set as `INDIAMART_CRM_KEY` (paid seller account); click Sync now in Settings once to check.
 - [ ] Review the four starter articles and publish the ones you like; check the visiting card details in `CARD` in `server.js`.

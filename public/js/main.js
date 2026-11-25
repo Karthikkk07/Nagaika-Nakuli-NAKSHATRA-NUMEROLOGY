@@ -79,7 +79,7 @@
   }
 
   var topbar = '<div id="topbar"><div class="in"><div class="links"><a href="nakshatra.html#find">' + sk('Nakshatra') + '</a> <a href="tools.html">Life Path</a> <a href="tools.html?tool=mobile">Lucky Number</a> <a href="nakshatra.html#today">Today&rsquo;s ' + sk('Nakshatra') + '</a> <a href="contact.html?service=Free%20Consultation%20for%20People%20in%20Need">Free Consultation</a></div>' +
-    '<div class="acts"><a class="pill" href="' + wa + '" target="_blank" rel="noopener"><i></i>Chat with Numerologist</a><a class="pill dk" href="contact.html">Book Consultation</a></div></div></div>';
+    '<div class="acts"><form class="site-search" action="search.html" role="search"><input type="search" name="q" placeholder="Search the site" aria-label="Search the website" maxlength="80" autocomplete="off"><button type="submit" aria-label="Search">&#128269;</button><div class="ss-drop" hidden></div></form><a class="pill" href="' + wa + '" target="_blank" rel="noopener"><i></i>Chat with Numerologist</a><a class="pill dk" href="contact.html">Book Consultation</a></div></div></div>';
 
   var header = '<header class="site"><a class="brand notranslate" translate="no" href="index.html"><img class="logo" src="img/favicon.svg"   alt="" onerror="this.remove()">  <span>Nagaika Nakuli<small>NAKSHATRA NUMEROLOGY, BENGALURU</small></span></a>' +
     '<div class="langbar notranslate" translate="no"><b>Read in:</b>' + LANGS.map(function (l) {
@@ -168,6 +168,46 @@
     pr.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closePromo); });
     setTimeout(function () { pr.classList.add('on'); }, 6000);
   }
+
+  // Search box suggestions: a few matches while typing, full results on the search page
+  (function () {
+    var form = document.querySelector('form.site-search');
+    if (!form) return;
+    var input = form.querySelector('input'), drop = form.querySelector('.ss-drop'), timer = null, items = [], active = -1, seq = 0;
+    function close() { drop.hidden = true; drop.innerHTML = ''; items = []; active = -1; }
+    function paint() {
+      items.forEach(function (a, i) { a.className = i === active ? 'on' : ''; });
+    }
+    function show(results, q) {
+      drop.innerHTML = ''; items = []; active = -1;
+      results.forEach(function (r) {
+        var a = document.createElement('a'); a.href = r.url;
+        var t = document.createElement('b'); t.textContent = r.title;
+        var k = document.createElement('small'); k.textContent = r.kind;
+        a.appendChild(t); a.appendChild(k); drop.appendChild(a); items.push(a);
+      });
+      var all = document.createElement('a'); all.href = 'search.html?q=' + encodeURIComponent(q); all.className = 'all';
+      all.textContent = results.length ? 'See all results' : 'No quick matches. Search the whole site'; drop.appendChild(all); items.push(all);
+      drop.hidden = false;
+    }
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      var q = input.value.trim();
+      if (q.length < 2) return close();
+      timer = setTimeout(function () {
+        var mine = ++seq;
+        fetch('/api/search?limit=6&q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (d) { if (mine === seq) show(d.results, q); }).catch(close);
+      }, 200);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') return close();
+      if (!items.length || drop.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); active = (active + 1) % items.length; paint(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); active = (active - 1 + items.length) % items.length; paint(); }
+      else if (e.key === 'Enter' && active > -1) { e.preventDefault(); location.href = items[active].href; }
+    });
+    document.addEventListener('click', function (e) { if (!form.contains(e.target)) close(); });
+  })();
 
   // Live visitor count: an anonymous random id per tab, pinged only while the tab is visible
   (function () {

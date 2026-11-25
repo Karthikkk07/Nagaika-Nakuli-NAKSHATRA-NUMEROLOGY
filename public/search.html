@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Search | Nagaika, Nakuli Numerology</title>
+<meta name="description" content="Search the Nagaika, Nakuli Numerology website for services, Nakshatras, tools, articles and policies.">
+<link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-title"><div class="wrap"><h1>Search</h1></div></div>
+<section class="block">
+  <div class="wrap">
+    <form class="search-page-form" action="search.html" role="search">
+      <label for="sp-q" class="sr-only">Search the website</label>
+      <input id="sp-q" name="q" type="search" placeholder="Search services, Nakshatras, tools, prices..." maxlength="80" autocomplete="off">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <p id="sp-count" class="muted" role="status" aria-live="polite"></p>
+    <div id="sp-results"></div>
+    <div id="sp-help" hidden>
+      <h2>Popular pages</h2>
+      <ul class="sp-list">
+        <li><a href="nakshatra.html#find">Find your Nakshatra</a></li>
+        <li><a href="tools.html">Free numerology calculators</a></li>
+        <li><a href="marriage.html">Marriage compatibility</a></li>
+        <li><a href="hora.html">Hora timings</a></li>
+        <li><a href="services.html">All services</a> &middot; <a href="pricing.html">Pricing</a></li>
+        <li><a href="contact.html">Contact us</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+<script src="js/main.js"></script>
+<script>
+(function () {
+  var q = (new URLSearchParams(location.search).get('q') || '').trim();
+  var box = document.getElementById('sp-q'), out = document.getElementById('sp-results'), count = document.getElementById('sp-count'), help = document.getElementById('sp-help');
+  box.value = q;
+  if (!q) { help.hidden = false; return; }
+  document.title = 'Search: ' + q + ' | Nagaika, Nakuli Numerology';
+  count.textContent = 'Searching...';
+  fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=20').then(function (r) { return r.json(); }).then(function (d) {
+    count.textContent = d.results.length ? d.results.length + ' result' + (d.results.length > 1 ? 's' : '') + ' for \u201C' + q + '\u201D' : 'No results for \u201C' + q + '\u201D. Try fewer or different words, or choose a page below.';
+    help.hidden = !!d.results.length;
+    d.results.forEach(function (r) {
+      var card = document.createElement('div'); card.className = 'card sp-item';
+      var kind = document.createElement('span'); kind.className = 'tag'; kind.textContent = r.kind;
+      var h = document.createElement('h3'), a = document.createElement('a'); a.href = r.url; a.textContent = r.title; h.appendChild(a);
+      var p = document.createElement('p'); p.textContent = r.snippet;
+      card.appendChild(kind); card.appendChild(h); card.appendChild(p); out.appendChild(card);
+    });
+  }).catch(function () { count.textContent = 'Search is not available right now. Please use the menu.'; help.hidden = false; });
+})();
+</script>
+</body>
+</html>

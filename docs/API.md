@@ -18,6 +18,7 @@ JSON over HTTPS. Errors look like `{ "ok": false, "error": "message" }`. Bad req
 | `GET /api/orders/:id`, `/api/orders/:id/receipt.pdf` | A customer's own order and receipt; the id is an unguessable UUID. |
 | `POST /api/presence` `{id, page, view}` | Anonymous visitor heartbeat. 204. |
 | `GET /api/online` | `{show, online}`; hidden unless switched on. |
+| `GET /api/search?q=&limit=` | Site search over pages, services, Nakshatras and published articles. |
 | `GET /api/card`, `/card.vcf`, `/card-qr.svg` | E-visiting card data, contact file and QR code. |
 | `GET /api/blogs`, `/api/blogs/:id`, `/api/videos` | Content. |
 | `GET /robots.txt`, `/sitemap.xml` | SEO. |

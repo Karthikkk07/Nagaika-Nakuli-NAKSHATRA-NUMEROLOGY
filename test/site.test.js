@@ -48,6 +48,24 @@ test('visiting card: details, contact file and QR code', async () => {
   assert.match(await (await fetch(BASE + '/sitemap.xml')).text(), /example\.test\/card\.html/);
 });
 
+test('site search finds pages, services, Nakshatras and synonyms', async () => {
+  const find = async (q) => (await (await fetch(BASE + '/api/search?q=' + encodeURIComponent(q))).json()).results;
+  const marriage = await find('marriage');
+  assert.ok(marriage.some((r) => r.title === 'Marriage Compatibility' && r.kind === 'Service'), JSON.stringify(marriage.map((r) => r.title)));
+  assert.ok((await find('kundli')).some((r) => /marriage/i.test(r.title)));
+  assert.ok((await find('refund')).some((r) => r.url === '/refund-policy.html'));
+  assert.ok((await find('fee')).some((r) => r.url === '/pricing.html' || r.kind === 'Service'));
+  const star = await find('ashwini');
+  assert.strictEqual(star[0].title, 'Ashwini Nakshatra');
+  assert.deepStrictEqual(await find('x'), []);
+  assert.deepStrictEqual(await find('zzzzqqqq'), []);
+  // the search page itself and error pages are not searchable or in the sitemap
+  const all = JSON.stringify(await find('search'));
+  assert.ok(!all.includes('/search.html') && !all.includes('/404.html'));
+  assert.ok(!(await (await fetch(BASE + '/sitemap.xml')).text()).includes('search.html'));
+  assert.match(await (await fetch(BASE + '/search.html')).text(), /name="robots" content="noindex"/);
+});
+
 test('starter articles are added once, as unpublished drafts', async () => {
   const add = () => fetch(BASE + '/admin/api/blogs/starter', { method: 'POST', headers: AUTH }).then((r) => r.json());
   assert.strictEqual((await add()).added, 4);

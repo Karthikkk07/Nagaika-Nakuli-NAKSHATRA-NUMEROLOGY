@@ -1018,6 +1018,30 @@ function parseYouTubeId(url) {
 }
 // Public settings are a short allow-list; switches, sync state and similar stay admin-only
 const PUBLIC_SETTINGS = ['youtube', 'instagram', 'facebook', 'linkedin', 'show_online', 'ga4_id'];
+// ---------- site search ----------
+const siteSearch = require('./lib/search');
+let searchCache = { at: 0, items: [] };
+function searchIndex() {
+  if (Date.now() - searchCache.at > 60 * 1000) {
+    searchCache = {
+      at: Date.now(),
+      items: siteSearch.buildIndex({
+        publicDir: path.join(__dirname, 'public'),
+        services: engine.SERVICES,
+        nakshatras: engine.NAKSHATRA.LIST,
+        blogs: store.listBlogs(true).map((b) => store.getBlog(b.id)),
+      }),
+    };
+  }
+  return searchCache.items;
+}
+app.get('/api/search', rateLimit(90, 60 * 1000), (req, res) => {
+  const q = String(req.query.q || '').slice(0, 80);
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 12));
+  res.set('Cache-Control', 'no-store');
+  res.json({ q, results: siteSearch.search(searchIndex(), q, limit) });
+});
+
 app.get('/api/settings', (req, res) => {
   const s = store.getSettings();
   res.json(Object.fromEntries(PUBLIC_SETTINGS.filter((k) => s[k] !== undefined).map((k) => [k, s[k]])));
